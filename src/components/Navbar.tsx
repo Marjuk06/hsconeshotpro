@@ -32,14 +32,7 @@ export default function Navbar() {
           <h1 className="text-xl font-bold tracking-wider">HSC<span className="text-indigo-400">ONESHOT</span>PRO</h1>
         </div>
 
-        <div className="flex gap-2 items-center pl-2 sm:pl-4 sm:border-l border-white/10">
-          <button onClick={toggleExamMode} className={`p-2 rounded-xl border transition jelly ${isExamMode ? 'bg-rose-500/30 text-rose-400 border-rose-500/50' : 'bg-black/30 border-white/10 hover:bg-rose-500/20 hover:text-rose-400'}`} title="Exam Mode">
-            <Target className="w-4 h-4" />
-          </button>
-          <button onClick={toggleNightMode} className={`p-2 rounded-xl border transition jelly ${isNightMode ? 'bg-amber-500/30 text-amber-400 border-amber-500/50' : 'bg-black/30 border-white/10 hover:bg-amber-500/20 hover:text-amber-400'}`} title="Night Study Mode">
-            <Moon className="w-4 h-4" />
-          </button>
-        </div>
+        
       </div>
 
       <div className="flex items-center gap-4 w-full sm:w-auto">
