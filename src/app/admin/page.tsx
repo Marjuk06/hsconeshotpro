@@ -299,35 +299,8 @@ export default function MasterAdmin() {
   }
 
   // --- ACTIONS: FOLDER BGs ---
- const saveFolderBg = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const sub = formData.get("subject") as string;
-    const pap = formData.get("paper") as string;
-    const chap = formData.get("chapter") as string;
-    const clsId = formData.get("class_id") as string; // Uses ID to be exact
-    const url = formData.get("bg_url") as string;
-    
-    // Build the cascading key
-    let key = sub;
-    if (pap) key += `::${pap}`;
-    if (chap) key += `::${chap}`;
-    if (clsId) key += `::${clsId}`;
-    
-    const newBgs = { ...folderBgs, [key]: url };
-    setFolderBgs(newBgs);
-    localStorage.setItem("hsc_folder_bgs", JSON.stringify(newBgs));
-    toast.success("Hierarchical Thumbnail Updated! 🖼️");
-    (e.target as HTMLFormElement).reset();
-  };
+ 
 
-  const removeFolderBg = (key: string) => {
-    const newBgs = { ...folderBgs };
-    delete newBgs[key];
-    setFolderBgs(newBgs);
-    localStorage.setItem("hsc_folder_bgs", JSON.stringify(newBgs));
-    toast.success("Thumbnail removed.");
-  };
 
   // --- IMPORT / EXPORT ---
   const exportData = async () => {
