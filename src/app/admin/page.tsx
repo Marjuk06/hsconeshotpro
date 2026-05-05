@@ -33,6 +33,10 @@ export default function MasterAdmin() {
   // EDIT Modal State
   const [editingVideo, setEditingVideo] = useState<any | null>(null);
 
+  // Factory Reset States
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   // Form States (Upload)
   const [isBulkMode, setIsBulkMode] = useState(false); 
   const [loadingForm, setLoadingForm] = useState(false);
@@ -105,9 +109,18 @@ export default function MasterAdmin() {
     });
   };
 
-  const saveHierarchy = (newH: any) => {
-    setHierarchy(newH);
-    localStorage.setItem("hsc_hierarchy", JSON.stringify(newH));
+  const saveHierarchy = async (newH: any) => {
+    setHierarchy(newH); // Keep the UI snappy with an instant state update
+    
+    // Commit the entire configuration tree straight to the Supabase database cloud
+    const { error } = await supabase
+      .from("platform_config")
+      .upsert({ id: "global_hierarchy", config_json: newH, updated_at: new Date().toISOString() });
+      
+    if (error) {
+      toast.error("Database cloud sync failed!");
+      console.error(error);
+    }
   };
 
   const fetchDatabase = async () => {
@@ -119,7 +132,19 @@ export default function MasterAdmin() {
 
   useEffect(() => {
     fetchDatabase();
-    setHierarchy(JSON.parse(localStorage.getItem("hsc_hierarchy") || "{}"));
+    // Fetch the global folder hierarchy structure straight from the DB
+    const fetchGlobalHierarchy = async () => {
+      const { data, error } = await supabase
+        .from("platform_config")
+        .select("config_json")
+        .eq("id", "global_hierarchy")
+        .single();
+      
+      if (!error && data?.config_json) {
+        setHierarchy(data.config_json);
+      }
+    };
+    fetchGlobalHierarchy();
   }, []);
 
   // Watch for smart link triggers to switch tabs
@@ -221,6 +246,40 @@ export default function MasterAdmin() {
     const { error } = await supabase.from("videos").update(updates).eq("id", editingVideo.id);
     if (!error) { toast.success("Class updated!", { id: toastId }); setEditingVideo(null); fetchDatabase(); } 
     else toast.error("Failed to update.", { id: toastId });
+  };
+
+  // --- ACTIONS: FACTORY RESET (GLOBAL CLOUD WIPE) ---
+  const executeFactoryReset = async () => {
+    setIsResetting(true);
+    const toastId = toast.loading("Initiating Total Cloud Wipe... ☢️");
+
+    try {
+      // 1. Wipe Supabase Video Records
+      const allIds = videos.map(v => v.id);
+      if (allIds.length > 0) {
+        const { error: videoError } = await supabase.from("videos").delete().in("id", allIds);
+        if (videoError) throw videoError;
+      }
+
+      // 2. Clear out the database metadata layout configurations globally
+      const { error: configError } = await supabase
+        .from("platform_config")
+        .upsert({ id: "global_hierarchy", config_json: {}, updated_at: new Date().toISOString() });
+      if (configError) throw configError;
+
+      // 3. Update local state instantly
+      setVideos([]);
+      setHierarchy({});
+      setHPath({ subject: "", paper: "", chapter: "" });
+      
+      toast.success("Database Nuked Successfully! 💥", { id: toastId });
+      setShowResetConfirm(false);
+    } catch (error) {
+      toast.error("Wipe failed. Check database permissions.", { id: toastId });
+      console.error(error);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   // --- ACTIONS: SMART BULK UPLOAD ---
@@ -846,7 +905,7 @@ export default function MasterAdmin() {
               <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none"><AlertTriangle className="w-32 h-32 text-red-500" /></div>
               <h3 className="text-lg font-bold text-red-400 mb-2 relative z-10">Danger Zone</h3>
               <p className="text-sm text-gray-400 mb-6 relative z-10 max-w-lg">Actions taken here are permanent. Ensure you have exported a snapshot first.</p>
-              <button onClick={() => toast.error("Factory Reset requires backend authorization.")} className="px-5 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-200 hover:text-white border border-red-500/50 font-medium transition jelly relative z-10 text-sm">
+              <button onClick={() => setShowResetConfirm(true)} className="px-5 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-600 text-red-200 hover:text-white border border-red-500/50 font-bold transition jelly relative z-10 text-sm shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]">
                 Factory Reset Database
               </button>
             </div>
@@ -913,6 +972,30 @@ export default function MasterAdmin() {
           <div className="flex gap-3">
             <button onClick={() => setDeleteAlertIds([])} className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition font-medium jelly">Cancel</button>
             <button onClick={confirmDelete} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition font-medium shadow-[0_0_15px_rgba(239,68,68,0.3)] jelly">Yes, Delete</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* CUSTOM FACTORY RESET MODAL */}
+    {showResetConfirm && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !isResetting && setShowResetConfirm(false)}></div>
+        <div className="glass-panel w-full max-w-md rounded-3xl p-8 relative z-10 animate-fade-in text-center shadow-2xl shadow-red-900/40 border border-red-500/30">
+          <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6 border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+            <AlertTriangle className="w-10 h-10 text-red-500" />
+          </div>
+          <h3 className="text-2xl font-black text-red-400 mb-3 uppercase tracking-widest">Total Wipe</h3>
+          <p className="text-sm text-gray-300 mb-8 leading-relaxed">
+            This will <span className="font-bold text-white">permanently delete ALL classes</span> from Supabase and wipe your production Subject Controls configuration. Make sure you exported a backup snapshot first!
+          </p>
+          <div className="flex gap-4">
+            <button disabled={isResetting} onClick={() => setShowResetConfirm(false)} className="flex-1 px-4 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition font-bold jelly">
+              Cancel
+            </button>
+            <button disabled={isResetting} onClick={executeFactoryReset} className="flex-1 px-4 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white transition font-bold shadow-[0_0_20px_rgba(220,38,38,0.5)] jelly disabled:opacity-50 flex items-center justify-center gap-2">
+              {isResetting ? "Wiping Cloud Data..." : "Nuke Database"}
+            </button>
           </div>
         </div>
       </div>

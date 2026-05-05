@@ -35,11 +35,22 @@ export default function VideoGrid() {
     setLoading(false);
   };
 
-  useEffect(() => {
+ useEffect(() => {
     fetchVideos();
-    const savedH = JSON.parse(localStorage.getItem("hsc_hierarchy") || "{}");
-    setHierarchy(savedH);
-
+    
+    // Fetch the standardized hierarchy layout globally from the cloud config table
+    const loadCloudHierarchy = async () => {
+      const { data, error } = await supabase
+        .from("platform_config")
+        .select("config_json")
+        .eq("id", "global_hierarchy")
+        .single();
+      
+      if (!error && data?.config_json) {
+        setHierarchy(data.config_json);
+      }
+    };
+    loadCloudHierarchy();
     // Restore Navigation State (Permanent Local Memory)
     const savedState = JSON.parse(localStorage.getItem("hsc_nav_state") || "null");
     if (savedState) {
