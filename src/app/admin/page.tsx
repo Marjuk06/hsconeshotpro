@@ -140,9 +140,27 @@ export default function MasterAdmin() {
         .eq("id", "global_hierarchy")
         .single();
       
-      if (!error && data?.config_json) {
-        setHierarchy(data.config_json);
+      let cloudHierarchy = data?.config_json || {};
+
+      // --- AUTO-MIGRATION RECOVERY ---
+      // If the cloud only has 0 or 1 subjects, but your local browser has all your old ones, merge them to the cloud!
+      const localH = JSON.parse(localStorage.getItem("hsc_hierarchy") || "{}");
+      if (Object.keys(localH).length > Object.keys(cloudHierarchy).length) {
+        toast.success("Recovering old folders to the Cloud... ☁️", { icon: '🔄' });
+        
+        // Merge the local data with any new cloud data so nothing is lost
+        const mergedHierarchy = { ...localH, ...cloudHierarchy };
+        cloudHierarchy = mergedHierarchy;
+        
+        // Push the recovered data straight to Supabase
+        await supabase.from("platform_config").upsert({ 
+          id: "global_hierarchy", 
+          config_json: mergedHierarchy, 
+          updated_at: new Date().toISOString() 
+        });
       }
+      
+      setHierarchy(cloudHierarchy);
     };
     fetchGlobalHierarchy();
   }, []);
@@ -364,7 +382,8 @@ export default function MasterAdmin() {
   // --- IMPORT / EXPORT ---
   const exportData = async () => {
     toast.loading("Packaging backup...", { id: "export" });
-    const blob = new Blob([JSON.stringify({ videos }, null, 2)], { type: "application/json" });
+    // Now packages BOTH videos and the folder hierarchy
+    const blob = new Blob([JSON.stringify({ videos, hierarchy }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `hsc-master-backup.json`; a.click(); URL.revokeObjectURL(url);
     toast.success("Master Backup Downloaded! 📦", { id: "export" });
@@ -376,13 +395,24 @@ export default function MasterAdmin() {
       toast.loading("Restoring Master Backup...", { id: "import" });
       try {
         const json = JSON.parse(event.target?.result as string);
+        
+        // 1. Restore Folders (Hierarchy)
+        if (json.hierarchy && Object.keys(json.hierarchy).length > 0) {
+          await saveHierarchy(json.hierarchy);
+          toast.success("Subject Folders Restored! 📂", { id: "import_h" });
+        }
+
+        // 2. Restore Videos
         if (json.videos && json.videos.length > 0) {
           const existingUrls = new Set(videos.map(v => v.url));
           const newVideos = json.videos.map((v:any) => ({...v})).filter((v: any) => !existingUrls.has(v.url));
-          if (newVideos.length === 0) return toast.success("Database is already up to date! ✨", { id: "import" });
-          const { error } = await supabase.from("videos").insert(newVideos);
-          if (error) throw error;
-          fetchDatabase(); toast.success(`${newVideos.length} classes restored! 🚀`, { id: "import" });
+          if (newVideos.length > 0) {
+            const { error } = await supabase.from("videos").insert(newVideos);
+            if (error) throw error;
+            fetchDatabase(); toast.success(`${newVideos.length} classes restored! 🚀`, { id: "import" });
+          } else {
+            toast.success("Videos already up to date! ✨", { id: "import" });
+          }
         }
       } catch (error: any) { toast.error("Corrupted backup file! ❌", { id: "import" }); }
     };
