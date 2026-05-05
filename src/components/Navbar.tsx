@@ -29,7 +29,7 @@ export default function Navbar() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
             <GraduationCap className="text-white w-5 h-5" />
           </div>
-          <h1 className="text-xl font-bold tracking-wider">HSC<span className="text-indigo-400">PRO</span></h1>
+          <h1 className="text-xl font-bold tracking-wider">HSC<span className="text-indigo-400">ONESHOT</span>PRO</h1>
         </div>
 
         <div className="flex gap-2 items-center pl-2 sm:pl-4 sm:border-l border-white/10">

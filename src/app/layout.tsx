@@ -6,8 +6,8 @@ import StudyBuddy from "@/components/StudyBuddy";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "HSC Hub | Pro One-Shots",
-  description: "Premium study hub for HSC preparation",
+  title: "HSC OneShot Pro",
+  description: "FreeOne-shot classes.",
 };
 
 export default function RootLayout({
