@@ -759,7 +759,7 @@ export default function MasterAdmin() {
             {/* Folder Grid Display (Ordered & Editable) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.entries(!hPath.subject ? hierarchy : !hPath.paper ? (hierarchy[hPath.subject]?.papers || {}) : (hierarchy[hPath.subject]?.papers[hPath.paper]?.chapters || {}))
-                .sort((a, b) => (a[1].seq || 0) - (b[1].seq || 0))
+                .sort((a: [string, any], b: [string, any]) => (a[1].seq || 0) - (b[1].seq || 0))
                 .map(([name, data]: [string, any], index, arr) => (
                 <div key={name} className="glass-card rounded-xl p-3 flex flex-col border border-white/5 hover:border-cyan-500/50 transition cursor-pointer group shadow-lg relative" onClick={() => {
                   if (!hPath.subject) setHPath({...hPath, subject: name});
