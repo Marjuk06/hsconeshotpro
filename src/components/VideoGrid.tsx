@@ -100,8 +100,8 @@ export default function VideoGrid() {
     return seqA - seqB || a.localeCompare(b);
   }) : [];
   const chapters = activePaper ? Array.from(new Set(videos.filter(v => (v.subject || "Uncategorized") === activeSubject && (v.paper || "General") === activePaper).map(v => v.chapter || "Misc"))).sort((a, b) => {
-    const seqA = hierarchy[activeSubject]?.papers?.[activePaper]?.chapters?.[a]?.seq ?? 999;
-    const seqB = hierarchy[activeSubject]?.papers?.[activePaper]?.chapters?.[b]?.seq ?? 999;
+    const seqA = hierarchy[activeSubject!]?.papers?.[activePaper]?.chapters?.[a]?.seq ?? 999;
+    const seqB = hierarchy[activeSubject!]?.papers?.[activePaper]?.chapters?.[b]?.seq ?? 999;
     return seqA - seqB || a.localeCompare(b);
   }) : [];
   const finalVideos = activeChapter ? videos.filter(v => (v.subject || "Uncategorized") === activeSubject && (v.paper || "General") === activePaper && (v.chapter || "Misc") === activeChapter) : [];
