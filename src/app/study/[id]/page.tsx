@@ -1,0 +1,202 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { ArrowLeft, Edit3, CheckCircle, FileText, Video as VideoIcon } from "lucide-react";
+import YouTube from "react-youtube";
+
+const getYouTubeID = (url: string) => {
+  if (!url) return null;
+  const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+  return match && match[2].length === 11 ? match[2] : null;
+};
+
+const getDrivePreviewUrl = (url: string) => {
+  if (!url) return "";
+  if (url.includes('drive.google.com/file/d/')) {
+    const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (match && match[1]) return `https://drive.google.com/file/d/${match[1]}/preview`;
+  }
+  return url;
+};
+
+export default function StudyRoom() {
+  const { id } = useParams();
+  const router = useRouter();
+  const [video, setVideo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // UI States
+  const [notes, setNotes] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
+  const [showSheets, setShowSheets] = useState(false);
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  
+  const playerRef = useRef<any>(null);
+
+  useEffect(() => {
+    async function fetchVideo() {
+      const { data, error } = await supabase.from("videos").select("*").eq("id", id).single();
+      if (!error && data) {
+        setVideo(data);
+        setNotes(data.notes || "");
+        if (data.sheets && data.sheets.length > 0) {
+          setActiveSheet(data.sheets[0].url);
+        }
+      }
+      setLoading(false);
+    }
+    fetchVideo();
+  }, [id]);
+
+  // Background Auto-Save Timer (Progress & Notes)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (playerRef.current && video) {
+        const currentTime = await playerRef.current.getCurrentTime();
+        const duration = await playerRef.current.getDuration();
+        
+        let finalProgress = video.progress;
+        let status = video.status;
+
+        if (duration > 0) {
+          const progressPct = Math.floor((currentTime / duration) * 100);
+          finalProgress = progressPct > 95 ? 100 : progressPct;
+          status = finalProgress === 100 ? "Watched" : "Watching";
+        }
+
+        // Silent background update
+        await supabase.from("videos").update({ 
+          last_position: Math.floor(currentTime),
+          progress: finalProgress,
+          status: status,
+          notes: notes
+        }).eq("id", id);
+      }
+    }, 5000); 
+
+    return () => clearInterval(interval);
+  }, [video, id, notes]);
+
+  async function markWatched() {
+    await supabase.from("videos").update({ status: "Watched", progress: 100 }).eq("id", id);
+    setVideo({ ...video, status: "Watched", progress: 100 });
+  }
+
+  const togglePanel = (panel: 'notes' | 'sheets') => {
+    if (panel === 'notes') {
+      setShowNotes(!showNotes);
+      if (!showNotes) setShowSheets(false);
+    } else {
+      setShowSheets(!showSheets);
+      if (!showSheets) setShowNotes(false);
+    }
+  };
+
+  if (loading) return <div className="h-screen flex items-center justify-center text-indigo-400 animate-pulse">Loading Study Room...</div>;
+  if (!video) return <div className="h-screen flex items-center justify-center text-rose-400">Class not found!</div>;
+
+  const ytId = getYouTubeID(video.url);
+  const showSidebar = showNotes || showSheets;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col animate-fade-in">
+      {/* Top Header */}
+      <div className="h-16 border-b border-white/10 glass-panel flex justify-between items-center px-4 sm:px-6 shrink-0 relative z-20">
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.push('/')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition border border-white/10 jelly flex items-center justify-center">
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+          <h3 className="font-medium text-sm sm:text-lg truncate max-w-[150px] sm:max-w-md lg:max-w-xl text-gray-200">{video.title}</h3>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Smart Toggles */}
+          <div className="hidden md:flex items-center gap-2 mr-2 bg-black/20 px-3 py-1.5 rounded-2xl border border-white/5">
+            <button onClick={() => togglePanel('notes')} className={`p-2 rounded-xl border transition jelly ${showNotes ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-transparent text-gray-400 hover:text-white'}`} title="Notes">
+              <Edit3 className="w-4 h-4" />
+            </button>
+            <div className="w-px h-5 bg-white/10"></div>
+            <button onClick={() => togglePanel('sheets')} className={`p-2 rounded-xl border transition jelly ${showSheets ? 'bg-fuchsia-500/20 border-fuchsia-500/50 text-fuchsia-300' : 'bg-transparent border-transparent text-gray-400 hover:text-white'}`} title="Lecture Sheets">
+              <FileText className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <button onClick={markWatched} className={`text-xs px-4 py-2 rounded-xl transition flex items-center gap-2 font-medium jelly ${video.status === 'Watched' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-white/10 hover:bg-emerald-500/20 border border-white/20 hover:border-emerald-500/50 text-gray-300'}`}>
+            {video.status === 'Watched' ? <><CheckCircle className="w-4 h-4" /> Watched</> : "Mark Watched"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-grow flex flex-col lg:flex-row p-4 gap-4 overflow-hidden relative z-10 w-full h-full">
+        {/* Video Panel */}
+        <div className={`flex-grow rounded-2xl overflow-hidden glass-panel border border-white/10 flex flex-col shadow-2xl relative transition-all duration-500 ${showSidebar ? 'lg:w-[60%]' : 'w-full'}`}>
+          {ytId ? (
+            <YouTube 
+              videoId={ytId} 
+              opts={{ width: '100%', height: '100%', playerVars: { autoplay: 1, modestbranding: 1, rel: 0, start: video.last_position || 0 } }}
+              className="absolute inset-0 w-full h-full"
+              onReady={(e) => { playerRef.current = e.target; }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-500">Invalid Link</div>
+          )}
+        </div>
+
+        {/* Dynamic Sidebar (Notes or Sheets) */}
+        {showSidebar && (
+          <div className="lg:w-[40%] flex-grow lg:flex-grow-0 flex flex-col glass-panel border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
+            
+            {showNotes && (
+              <div className="flex-1 flex flex-col p-4 h-full animate-fade-in">
+                <div className="flex items-center gap-2 mb-3 text-indigo-400 font-medium text-sm"><Edit3 className="w-4 h-4" /> My Notes</div>
+                <textarea 
+                  value={notes} 
+                  onChange={(e) => setNotes(e.target.value)} 
+                  placeholder="Type notes here... (Auto-saves automatically)" 
+                  className="flex-grow w-full h-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition resize-none font-mono text-sm shadow-inner"
+                ></textarea>
+              </div>
+            )}
+
+            {showSheets && (
+              <div className="flex-1 flex flex-col p-4 h-full animate-fade-in gap-3">
+                <div className="flex items-center gap-2 text-fuchsia-400 font-medium text-sm shrink-0"><FileText className="w-4 h-4" /> Lecture Sheets</div>
+                
+                {video.sheets && video.sheets.length > 0 ? (
+                  <>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      {video.sheets.map((sheet: any, idx: number) => (
+                        <button 
+                          key={idx}
+                          onClick={() => setActiveSheet(sheet.url)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-300 jelly ${activeSheet === sheet.url ? 'bg-fuchsia-500 text-white shadow-[0_0_10px_rgba(217,70,239,0.5)] border-fuchsia-400' : 'bg-black/40 text-gray-400 hover:text-white border-white/10 hover:bg-white/10'}`}
+                        >
+                          <FileText className="w-3 h-3 inline mr-1" /> {sheet.title || `Sheet ${idx + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-grow w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-white shadow-inner relative">
+                      {activeSheet ? (
+                        <iframe className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-900">Select a sheet to view</div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-grow flex flex-col items-center justify-center text-gray-500 h-full">
+                    <FileText className="w-10 h-10 mb-3 opacity-50" />
+                    <p className="text-sm">No lecture sheets available.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
