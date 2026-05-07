@@ -447,6 +447,39 @@ export default function MasterAdmin() {
  
 
 
+  // --- DATA MAINTENANCE ---
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  const syncMissingDurations = async () => {
+    setIsSyncing(true);
+    // Find only videos that are missing duration data
+    const videosToUpdate = videos.filter(v => !v.duration || v.duration === 0);
+    
+    if (videosToUpdate.length === 0) {
+      toast.success("All videos already have their times synced! ✨");
+      setIsSyncing(false);
+      return;
+    }
+
+    const toastId = toast.loading(`Syncing time data for ${videosToUpdate.length} videos... Please wait ⏳`);
+    let updatedCount = 0;
+
+    for (const v of videosToUpdate) {
+      const ytId = getYouTubeID(v.url);
+      if (ytId) {
+        const durationSecs = await fetchYTDuration(ytId);
+        if (durationSecs > 0) {
+          await supabase.from("videos").update({ duration: durationSecs }).eq("id", v.id);
+          updatedCount++;
+        }
+      }
+    }
+
+    fetchDatabase(); // Refresh the local data to show the new times
+    toast.success(`Successfully synced ${updatedCount} video times! ⏱️`, { id: toastId });
+    setIsSyncing(false);
+  };
+
   // --- IMPORT / EXPORT ---
   const exportData = async () => {
     toast.loading("Packaging backup...", { id: "export" });
@@ -1008,22 +1041,31 @@ export default function MasterAdmin() {
           <div className="animate-fade-in overflow-y-auto custom-scrollbar h-full pr-2">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Settings className="text-amber-400 w-6 h-6" /> System Settings</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mb-8">
               <div className="glass-card p-6 rounded-2xl border border-white/10">
                 <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 border border-blue-500/30"><Download className="text-blue-400 w-5 h-5" /></div>
                 <h3 className="text-lg font-bold mb-2">Create Database Snapshot</h3>
-                <p className="text-sm text-gray-400 mb-6">Download a complete JSON backup of all videos to your PC.</p>
-                <button onClick={exportData} className="w-full py-3 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/50 text-blue-300 font-medium transition jelly flex justify-center items-center gap-2"><Download className="w-4 h-4" /> Export Data</button>
+                <p className="text-sm text-gray-400 mb-6 flex-grow">Download a complete JSON backup of all videos to your PC.</p>
+                <button onClick={exportData} className="w-full py-3 rounded-xl mt-auto bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/50 text-blue-300 font-medium transition jelly flex justify-center items-center gap-2"><Download className="w-4 h-4" /> Export Data</button>
               </div>
 
               <div className="glass-card p-6 rounded-2xl border border-white/10">
                 <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center mb-4 border border-amber-500/30"><Upload className="text-amber-400 w-5 h-5" /></div>
                 <h3 className="text-lg font-bold mb-2">Restore from Snapshot</h3>
-                <p className="text-sm text-gray-400 mb-6">Upload a JSON backup to your app. Duplicates are safely ignored.</p>
-                <label className="w-full py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/50 text-amber-300 font-medium transition jelly flex justify-center items-center gap-2 cursor-pointer">
+                <p className="text-sm text-gray-400 mb-6 flex-grow">Upload a JSON backup to your app. Duplicates are safely ignored.</p>
+                <label className="w-full py-3 rounded-xl mt-auto bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/50 text-amber-300 font-medium transition jelly flex justify-center items-center gap-2 cursor-pointer">
                   <Upload className="w-4 h-4" /> Import Data
                   <input type="file" className="hidden" accept=".json" onChange={importData} />
                 </label>
+              </div>
+
+              <div className="glass-card p-6 rounded-2xl border border-white/10 flex flex-col">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4 border border-emerald-500/30"><Clock className="text-emerald-400 w-5 h-5" /></div>
+                <h3 className="text-lg font-bold mb-2">Sync Missing Video Times</h3>
+                <p className="text-sm text-gray-400 mb-6 flex-grow">Scans database for older videos and auto-fetches duration from YouTube.</p>
+                <button disabled={isSyncing} onClick={syncMissingDurations} className="w-full py-3 rounded-xl mt-auto bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 text-emerald-300 font-medium transition jelly flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <Clock className="w-4 h-4" /> {isSyncing ? "Syncing API..." : "Start Time Sync"}
+                </button>
               </div>
             </div>
 
