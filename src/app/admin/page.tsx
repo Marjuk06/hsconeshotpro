@@ -32,6 +32,14 @@ export default function MasterAdmin() {
   
   // EDIT Modal State
   const [editingVideo, setEditingVideo] = useState<any | null>(null);
+  const [editSheets, setEditSheets] = useState<{title: string, url: string}[]>([{ title: "Lecture Slide", url: "" }]);
+
+  useEffect(() => {
+    if (editingVideo) {
+      // Auto-load existing sheets or provide a blank one if none exist
+      setEditSheets(editingVideo.sheets && editingVideo.sheets.length > 0 ? editingVideo.sheets : [{ title: "Lecture Slide", url: "" }]);
+    }
+  }, [editingVideo]);
 
   // Factory Reset States
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -256,9 +264,14 @@ export default function MasterAdmin() {
   const submitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    // Filter out any empty sheet rows before saving
+    const validEditSheets = editSheets.filter(s => s.url.trim() !== "");
+    
     const updates = {
       title: formData.get("title"), url: formData.get("url"), subject: formData.get("subject"),
       paper: formData.get("paper"), chapter: formData.get("chapter"), teacher: formData.get("teacher"), tags: formData.get("tags"),
+      sheets: validEditSheets
     };
     const toastId = toast.loading("Updating class...");
     const { error } = await supabase.from("videos").update(updates).eq("id", editingVideo.id);
@@ -985,6 +998,22 @@ export default function MasterAdmin() {
               <div><label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold">Teacher</label><input type="text" list="teachers-list" name="teacher" defaultValue={editingVideo.teacher} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-amber-500 outline-none text-sm" /></div>
             </div>
             <div><label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold">Tags</label><input type="text" name="tags" defaultValue={editingVideo.tags} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-amber-500 outline-none text-sm" /></div>
+            
+            {/* GOOGLE DRIVE / LECTURE SHEETS EDITOR */}
+            <div className="glass-panel p-4 rounded-xl border border-white/5 bg-black/20 mt-2">
+              <label className="block text-[10px] text-emerald-400 mb-3 uppercase tracking-wider font-bold">Attached Lecture Sheets (PDF/Drive)</label>
+              <div className="space-y-3">
+                {editSheets.map((sheet, index) => (
+                  <div key={index} className="flex flex-col gap-2 relative group">
+                    <input type="text" placeholder="Title (e.g., Lecture Slide)" value={sheet.title} onChange={(e) => { const newSheets = [...editSheets]; newSheets[index].title = e.target.value; setEditSheets(newSheets); }} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-500 outline-none text-xs" />
+                    <input type="url" placeholder="Google Drive Link..." value={sheet.url} onChange={(e) => { const newSheets = [...editSheets]; newSheets[index].url = e.target.value; setEditSheets(newSheets); }} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-500 outline-none text-xs" />
+                    {editSheets.length > 1 && <button type="button" onClick={() => setEditSheets(editSheets.filter((_, i) => i !== index))} className="absolute top-1 right-2 text-gray-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition">✕</button>}
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => setEditSheets([...editSheets, { title: "Lecture Slide", url: "" }])} className="mt-3 text-[10px] flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition font-bold uppercase tracking-wider"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
+            </div>
+
           </div>
           <button type="submit" className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold transition jelly shadow-[0_0_15px_rgba(245,158,11,0.4)]">Save Changes</button>
         </form>
