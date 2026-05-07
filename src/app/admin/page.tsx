@@ -24,6 +24,7 @@ export default function MasterAdmin() {
   const [loadingData, setLoadingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list"); 
+  const [isNavLoaded, setIsNavLoaded] = useState(false);
   
   // Library Multi-Select & Modals
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -177,6 +178,24 @@ export default function MasterAdmin() {
     };
     fetchGlobalHierarchy();
   }, []);
+
+  // --- ADMIN NAVIGATION MEMORY ---
+  // 1. Restore Admin State on Load
+  useEffect(() => {
+    const savedState = JSON.parse(localStorage.getItem("hsc_admin_state") || "null");
+    if (savedState) {
+      if (savedState.activeTab) setActiveTab(savedState.activeTab);
+      if (savedState.hPath) setHPath(savedState.hPath);
+    }
+    setIsNavLoaded(true);
+  }, []);
+
+  // 2. Save Admin State automatically when you click around
+  useEffect(() => {
+    if (isNavLoaded) {
+      localStorage.setItem("hsc_admin_state", JSON.stringify({ activeTab, hPath }));
+    }
+  }, [activeTab, hPath, isNavLoaded]);
 
   // Watch for smart link triggers to switch tabs
   useEffect(() => {
@@ -446,6 +465,9 @@ export default function MasterAdmin() {
       v.title.toLowerCase().includes(searchTerm.toLowerCase()) || v.chapter?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
+
+  // Prevent UI flashing while Memory Engine restores your location
+  if (!isNavLoaded) return <div className="min-h-screen flex items-center justify-center text-indigo-400 font-bold animate-pulse bg-[#0B0F19]">Loading Admin Workstation...</div>;
 
   return (
     <>
