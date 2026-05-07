@@ -278,7 +278,12 @@ export default function VideoGrid() {
               <h2 className="text-2xl font-bold mb-6 text-center text-indigo-100 tracking-wide">Subjects</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {subjects.map((subject, idx) => {
-                  const count = videos.filter(v => (v.subject || "Uncategorized") === subject).length;
+                  const subjectVideos = videos.filter(v => (v.subject || "Uncategorized") === subject);
+                  const count = subjectVideos.length;
+                  const completed = subjectVideos.filter(v => v.progress === 100 || v.status === "Watched").length;
+                  const left = count - completed;
+                  const percent = count > 0 ? Math.round((completed / count) * 100) : 0;
+                  
                   const bgImg = hierarchy[subject]?.img;
                   const customLabel = hierarchy[subject]?.label || "SUBJECT";
 
@@ -293,8 +298,14 @@ export default function VideoGrid() {
                         <div className="absolute inset-0 bg-black/50 group-hover:bg-black/20 transition-all duration-500"></div>
                         <h3 className="text-3xl font-extrabold text-white text-center drop-shadow-[0_5px_5px_rgba(0,0,0,0.9)] z-10 group-hover:scale-110 transition-transform duration-500">{subject}</h3>
                       </div>
-                      <div className="bg-black/60 backdrop-blur-md p-3 text-center border-t border-white/10 relative z-20">
-                        <p className="text-xs font-bold text-gray-400 group-hover:text-indigo-300 transition-colors">{count} Classes Total</p>
+                      <div className="bg-black/60 backdrop-blur-md p-3 border-t border-white/10 relative z-20 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                          <span className="text-gray-400 group-hover:text-indigo-300 transition-colors">{count} Total</span>
+                          <span className={left === 0 && count > 0 ? "text-emerald-400" : "text-rose-400"}>{left} Left to conquer</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                          <div className="h-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${percent}%` }}></div>
+                        </div>
                       </div>
                     </div>
                   )
@@ -309,7 +320,12 @@ export default function VideoGrid() {
               <h2 className="text-2xl font-bold mb-6 text-center text-blue-300 tracking-wide">{activeSubject}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {papers.map((paper, idx) => {
-                  const count = videos.filter(v => (v.subject || "Uncategorized") === activeSubject && (v.paper || "General") === paper).length;
+                  const paperVideos = videos.filter(v => (v.subject || "Uncategorized") === activeSubject && (v.paper || "General") === paper);
+                  const count = paperVideos.length;
+                  const completed = paperVideos.filter(v => v.progress === 100 || v.status === "Watched").length;
+                  const left = count - completed;
+                  const percent = count > 0 ? Math.round((completed / count) * 100) : 0;
+                  
                   const bgImg = hierarchy[activeSubject!]?.papers?.[paper]?.img || hierarchy[activeSubject!]?.img;
                   const customLabel = hierarchy[activeSubject!]?.papers?.[paper]?.label || "PAPER";
 
@@ -324,8 +340,14 @@ export default function VideoGrid() {
                         <div className="absolute inset-0 bg-black/50 group-hover:bg-black/20 transition-all duration-500"></div>
                         <h3 className="text-3xl font-extrabold text-white text-center drop-shadow-[0_5px_5px_rgba(0,0,0,0.9)] z-10 group-hover:scale-110 transition-transform duration-500">{paper}</h3>
                       </div>
-                      <div className="bg-black/60 backdrop-blur-md p-3 text-center border-t border-white/10 relative z-20">
-                        <p className="text-xs font-bold text-gray-400 group-hover:text-blue-300 transition-colors">{count} Classes Available</p>
+                      <div className="bg-black/60 backdrop-blur-md p-3 border-t border-white/10 relative z-20 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                          <span className="text-gray-400 group-hover:text-blue-300 transition-colors">{count} Total</span>
+                          <span className={left === 0 && count > 0 ? "text-emerald-400" : "text-amber-400"}>{left} Left to conquer</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/5">
+                          <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${percent}%` }}></div>
+                        </div>
                       </div>
                     </div>
                   )
