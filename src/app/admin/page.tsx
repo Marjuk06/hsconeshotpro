@@ -16,6 +16,30 @@ const getYouTubeID = (url: string) => {
   const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
   return match && match[2].length === 11 ? match[2] : null;
 };
+// --- NEW YOUTUBE TIME DECODER ENGINE ---
+const fetchYTDuration = async (ytId: string): Promise<number> => {
+  const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+  if (!apiKey || !ytId) return 0;
+  
+  try {
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${ytId}&part=contentDetails&key=${apiKey}`);
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) return 0;
+    
+    // Decode YouTube's weird PT1H2M10S format into total seconds
+    const durationStr = data.items[0].contentDetails.duration;
+    const match = durationStr.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+    if (!match) return 0;
+    
+    const hours = (parseInt(match[1]) || 0);
+    const minutes = (parseInt(match[2]) || 0);
+    const seconds = (parseInt(match[3]) || 0);
+    return (hours * 3600) + (minutes * 60) + seconds;
+  } catch (error) {
+    console.error("Failed to fetch duration", error);
+    return 0;
+  }
+};
 
 export default function MasterAdmin() {
   const router = useRouter();
@@ -363,14 +387,21 @@ export default function MasterAdmin() {
     if (isBulkMode) {
       for (const row of bulkRows) {
         if (!row.url.trim()) continue;
+        const ytId = getYouTubeID(row.url);
+        const durationSecs = ytId ? await fetchYTDuration(ytId) : 0; // Fetch exact time
+        
         const chap = row.chapter || "Misc";
         const rowTags = [...autoTagsArray, `#${chap.toLowerCase().replace(/\s+/g, '')}`];
-        newClasses.push({ url: row.url, title: row.title, subject, paper, chapter: chap, teacher, tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, notes: "" });
+        newClasses.push({ url: row.url, title: row.title, subject, paper, chapter: chap, teacher, tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, notes: "", duration: durationSecs });
       }
     } else {
+      const singleUrl = formData.get("single_url") as string;
+      const ytId = getYouTubeID(singleUrl);
+      const durationSecs = ytId ? await fetchYTDuration(ytId) : 0; // Fetch exact time
+      
       const chap = formData.get("single_chapter") as string || "Misc";
       const rowTags = [...autoTagsArray, `#${chap.toLowerCase().replace(/\s+/g, '')}`];
-      newClasses.push({ url: formData.get("single_url") as string, title: formData.get("single_title") as string, subject, paper, chapter: chap, teacher, tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, notes: "" });
+      newClasses.push({ url: singleUrl, title: formData.get("single_title") as string, subject, paper, chapter: chap, teacher, tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, notes: "", duration: durationSecs });
     }
 
     const { error } = await supabase.from("videos").insert(newClasses);

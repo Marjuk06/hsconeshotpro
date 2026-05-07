@@ -14,6 +14,13 @@ const getYouTubeID = (url: string) => {
   const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
   return match && match[2].length === 11 ? match[2] : null;
 };
+const formatTime = (totalSeconds: number) => {
+  if (!totalSeconds) return "0h 0m";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours > 0 ? `${hours}h ` : ''}${minutes}m`;
+};
+
 
 export default function VideoGrid() {
   const router = useRouter();
@@ -286,7 +293,10 @@ export default function VideoGrid() {
                   
                   const bgImg = hierarchy[subject]?.img;
                   const customLabel = hierarchy[subject]?.label || "SUBJECT";
-
+                  // Calculate exact time lengths!
+                  const totalSeconds = subjectVideos.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+                  const watchedSeconds = subjectVideos.filter(v => v.progress === 100).reduce((acc, curr) => acc + (curr.duration || 0), 0);
+                  const leftSeconds = totalSeconds - watchedSeconds;
                   return (
                     <div key={idx} onClick={() => { setActiveSubject(subject); setViewLevel("papers"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-indigo-500/50 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
                       <div className="bg-black/40 backdrop-blur-md px-4 py-2.5 border-b border-white/10 flex justify-between items-center z-20 relative">
@@ -307,6 +317,14 @@ export default function VideoGrid() {
                           <div className="h-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${percent}%` }}></div>
                         </div>
                       </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                          <span className="text-gray-400 group-hover:text-indigo-300 transition-colors">
+                            {count} Total • {formatTime(totalSeconds)}
+                          </span>
+                          <span className={left === 0 && count > 0 ? "text-emerald-400" : "text-rose-400"}>
+                            {left} Left ({formatTime(leftSeconds)})
+                          </span>
+                        </div>
                     </div>
                   )
                 })}
@@ -328,6 +346,11 @@ export default function VideoGrid() {
                   
                   const bgImg = hierarchy[activeSubject!]?.papers?.[paper]?.img || hierarchy[activeSubject!]?.img;
                   const customLabel = hierarchy[activeSubject!]?.papers?.[paper]?.label || "PAPER";
+
+                  // Calculate exact time lengths!
+                  const totalSeconds = paperVideos.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+                  const watchedSeconds = paperVideos.filter(v => v.progress === 100).reduce((acc, curr) => acc + (curr.duration || 0), 0);
+                  const leftSeconds = totalSeconds - watchedSeconds;
 
                   return (
                     <div key={idx} onClick={() => { setActivePaper(paper); setViewLevel("chapters"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
