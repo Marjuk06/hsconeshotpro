@@ -56,6 +56,11 @@ export default function MasterAdmin() {
   const [hPath, setHPath] = useState<{subject: string, paper: string, chapter: string}>({subject: "", paper: "", chapter: ""});
   const [formPrefill, setFormPrefill] = useState<{subject: string, paper: string, chapter: string, url?: string} | null>(null);
   const [editingNode, setEditingNode] = useState<{oldName: string, seq: number, label?: string} | null>(null);
+  
+  // Drag & Drop / Safe Delete States
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+  
   // --- SMART DATA ENGINES ---
   // 1. Auto-Fetch YT Meta Data
   const fetchYTData = async (url: string) => {
@@ -811,7 +816,7 @@ export default function MasterAdmin() {
               const nodeData = { 
                 ...oldData,
                 seq: editingNode ? editingNode.seq : Object.keys(targetDict).length, 
-                label: label || oldData.label || "",
+                label: label, // Now forces exactly what you typed, even if empty
                 papers: oldData.papers || {}, 
                 chapters: oldData.chapters || {} 
               };
@@ -863,40 +868,66 @@ export default function MasterAdmin() {
               {Object.entries(!hPath.subject ? hierarchy : !hPath.paper ? (hierarchy[hPath.subject]?.papers || {}) : (hierarchy[hPath.subject]?.papers[hPath.paper]?.chapters || {}))
                 .sort((a: [string, any], b: [string, any]) => (a[1].seq || 0) - (b[1].seq || 0))
                 .map(([name, data]: [string, any], index, arr) => (
-                <div key={name} className="glass-card rounded-xl p-3 flex flex-col border border-white/5 hover:border-cyan-500/50 transition cursor-pointer group shadow-lg relative" onClick={() => {
-                  if (!hPath.subject) setHPath({...hPath, subject: name});
-                  else if (!hPath.paper) setHPath({...hPath, paper: name});
-                  else setHPath({...hPath, chapter: name});
-                }}>
+                <div key={name} 
+                  draggable
+                  onDragStart={() => setDraggedNode(name)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    if (!draggedNode || draggedNode === name) return;
+
+                    const newH = { ...hierarchy };
+                    const target = !hPath.subject ? newH : !hPath.paper ? newH[hPath.subject].papers : newH[hPath.subject].papers[hPath.paper].chapters;
+
+                    const orderedKeys = arr.map(item => item[0]);
+                    const draggedIdx = orderedKeys.indexOf(draggedNode);
+                    const dropIdx = orderedKeys.indexOf(name);
+
+                    // Reorder keys
+                    orderedKeys.splice(draggedIdx, 1);
+                    orderedKeys.splice(dropIdx, 0, draggedNode);
+
+                    // Re-assign sequence safely based on new visual drop order
+                    orderedKeys.forEach((key, i) => { target[key].seq = i; });
+
+                    saveHierarchy(newH);
+                    setDraggedNode(null);
+                  }}
+                  onDragEnd={() => setDraggedNode(null)}
+                  className={`glass-card rounded-xl p-3 flex flex-col transition cursor-pointer group shadow-lg relative ${draggedNode === name ? 'opacity-40 border-cyan-500 scale-95' : 'border border-white/5 hover:border-cyan-500/50'}`} 
+                  onClick={() => {
+                    if (!hPath.subject) setHPath({...hPath, subject: name});
+                    else if (!hPath.paper) setHPath({...hPath, paper: name});
+                    else setHPath({...hPath, chapter: name});
+                  }}>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="flex items-center gap-3 overflow-hidden pointer-events-none">
                       <div className="w-10 h-10 rounded-lg bg-black/50 border border-white/10 flex-shrink-0 bg-cover bg-center" style={{backgroundImage: `url(${data.img || ''})`}}>{!data.img && <ImageIcon className="w-4 h-4 m-auto text-gray-600 mt-2.5"/>}</div>
                       <span className="font-bold text-sm text-gray-200 truncate">{name}</span>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 z-10">
                       <button onClick={(e) => {
                         e.stopPropagation(); setEditingNode({oldName: name, seq: data.seq, label: data.label});
                         document.getElementById('hierarchy-form')?.scrollIntoView({ behavior: 'smooth' });
                       }} className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/30 transition jelly"><Edit2 className="w-3.5 h-3.5"/></button>
                       <button onClick={(e) => {
-                        e.stopPropagation(); const newH = { ...hierarchy };
-                        const target = !hPath.subject ? newH : !hPath.paper ? newH[hPath.subject].papers : newH[hPath.subject].papers[hPath.paper].chapters;
-                        delete target[name]; saveHierarchy(newH);
+                        e.stopPropagation(); setNodeToDelete(name); // <-- Opens the new safety modal!
                       }} className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/30 transition jelly"><Trash2 className="w-3.5 h-3.5"/></button>
                     </div>
                   </div>
                   
                   {/* Sequence Reorder Controls */}
                   <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-auto">
-                    <span className="text-[10px] text-gray-500 font-mono">Order: {data.seq || index}</span>
-                    <div className="flex gap-1">
+                    <span className="text-[10px] text-gray-500 font-mono">Order: {data.seq !== undefined ? data.seq : index} <span className="opacity-40 ml-1">(Drag to move)</span></span>
+                    <div className="flex gap-1 z-10">
                       <button onClick={(e) => {
                         e.stopPropagation(); if (index === 0) return;
                         const newH = { ...hierarchy };
                         const target = !hPath.subject ? newH : !hPath.paper ? newH[hPath.subject].papers : newH[hPath.subject].papers[hPath.paper].chapters;
+                        arr.forEach((item, i) => { target[item[0]].seq = i; });
                         const prevName = arr[index - 1][0];
-                        const tempSeq = target[name].seq !== undefined ? target[name].seq : index;
-                        target[name].seq = target[prevName].seq !== undefined ? target[prevName].seq : index - 1;
+                        const tempSeq = target[name].seq;
+                        target[name].seq = target[prevName].seq;
                         target[prevName].seq = tempSeq;
                         saveHierarchy(newH);
                       }} className="p-1 text-gray-400 hover:text-white bg-white/5 rounded transition"><ArrowUp className="w-3 h-3"/></button>
@@ -904,9 +935,10 @@ export default function MasterAdmin() {
                         e.stopPropagation(); if (index === arr.length - 1) return;
                         const newH = { ...hierarchy };
                         const target = !hPath.subject ? newH : !hPath.paper ? newH[hPath.subject].papers : newH[hPath.subject].papers[hPath.paper].chapters;
+                        arr.forEach((item, i) => { target[item[0]].seq = i; });
                         const nextName = arr[index + 1][0];
-                        const tempSeq = target[name].seq !== undefined ? target[name].seq : index;
-                        target[name].seq = target[nextName].seq !== undefined ? target[nextName].seq : index + 1;
+                        const tempSeq = target[name].seq;
+                        target[name].seq = target[nextName].seq;
                         target[nextName].seq = tempSeq;
                         saveHierarchy(newH);
                       }} className="p-1 text-gray-400 hover:text-white bg-white/5 rounded transition"><ArrowDown className="w-3 h-3"/></button>
@@ -1031,6 +1063,28 @@ export default function MasterAdmin() {
           <div className="flex gap-3">
             <button onClick={() => setDeleteAlertIds([])} className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition font-medium jelly">Cancel</button>
             <button onClick={confirmDelete} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition font-medium shadow-[0_0_15px_rgba(239,68,68,0.3)] jelly">Yes, Delete</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* CUSTOM HIERARCHY DELETE MODAL */}
+    {nodeToDelete && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setNodeToDelete(null)}></div>
+        <div className="glass-panel w-full max-w-sm rounded-2xl p-6 relative z-10 animate-fade-in text-center shadow-2xl shadow-red-900/20">
+          <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20"><Trash2 className="w-7 h-7 text-red-400" /></div>
+          <h3 className="text-xl font-bold mb-2">Delete "{nodeToDelete}"?</h3>
+          <p className="text-sm text-gray-400 mb-6">This will permanently remove the folder. Videos inside will remain in the database but lose this folder mapping.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setNodeToDelete(null)} className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition font-medium jelly">Cancel</button>
+            <button onClick={() => {
+              const newH = { ...hierarchy };
+              const target = !hPath.subject ? newH : !hPath.paper ? newH[hPath.subject].papers : newH[hPath.subject].papers[hPath.paper].chapters;
+              delete target[nodeToDelete]; 
+              saveHierarchy(newH);
+              setNodeToDelete(null);
+              toast.success(`Deleted successfully!`);
+            }} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition font-medium shadow-[0_0_15px_rgba(239,68,68,0.3)] jelly">Yes, Delete</button>
           </div>
         </div>
       </div>
