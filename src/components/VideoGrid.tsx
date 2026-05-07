@@ -309,13 +309,7 @@ export default function VideoGrid() {
                         <h3 className="text-3xl font-extrabold text-white text-center drop-shadow-[0_5px_5px_rgba(0,0,0,0.9)] z-10 group-hover:scale-110 transition-transform duration-500">{subject}</h3>
                       </div>
                       <div className="bg-black/60 backdrop-blur-md p-3 border-t border-white/10 relative z-20 flex flex-col gap-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                          <span className="text-gray-400 group-hover:text-indigo-300 transition-colors">{count} Total</span>
-                          <span className={left === 0 && count > 0 ? "text-emerald-400" : "text-rose-400"}>{left} Left to conquer</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/5">
-                          <div className="h-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${percent}%` }}></div>
-                        </div>
+                        
                         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                           <span className="text-gray-400 group-hover:text-indigo-300 transition-colors">
                             {count} Total • {formatTime(totalSeconds)}
