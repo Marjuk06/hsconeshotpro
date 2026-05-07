@@ -316,8 +316,7 @@ export default function VideoGrid() {
                         <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/5">
                           <div className="h-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${percent}%` }}></div>
                         </div>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
                           <span className="text-gray-400 group-hover:text-indigo-300 transition-colors">
                             {count} Total • {formatTime(totalSeconds)}
                           </span>
@@ -325,6 +324,8 @@ export default function VideoGrid() {
                             {left} Left ({formatTime(leftSeconds)})
                           </span>
                         </div>
+                      </div>
+                      
                     </div>
                   )
                 })}
