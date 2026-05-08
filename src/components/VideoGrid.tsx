@@ -289,14 +289,17 @@ export default function VideoGrid() {
                   const count = subjectVideos.length;
                   const completed = subjectVideos.filter(v => v.progress === 100 || v.status === "Watched").length;
                   const left = count - completed;
-                  const percent = count > 0 ? Math.round((completed / count) * 100) : 0;
                   
                   const bgImg = hierarchy[subject]?.img;
                   const customLabel = hierarchy[subject]?.label || "SUBJECT";
-                  // Calculate exact time lengths!
+
+                  // Calculate exact time lengths including PARTIAL progress!
                   const totalSeconds = subjectVideos.reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                  const watchedSeconds = subjectVideos.filter(v => v.progress === 100).reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                  const leftSeconds = totalSeconds - watchedSeconds;
+                  const watchedSeconds = subjectVideos.reduce((acc, curr) => acc + ((curr.duration || 0) * ((curr.progress || 0) / 100)), 0);
+                  const leftSeconds = Math.max(0, totalSeconds - watchedSeconds);
+                  
+                  // Make the neon progress bar ultra-precise based on actual time watched
+                  const percent = totalSeconds > 0 ? Math.round((watchedSeconds / totalSeconds) * 100) : (count > 0 ? Math.round((completed / count) * 100) : 0);
                   return (
                     <div key={idx} onClick={() => { setActiveSubject(subject); setViewLevel("papers"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-indigo-500/50 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
                       <div className="bg-black/40 backdrop-blur-md px-4 py-2.5 border-b border-white/10 flex justify-between items-center z-20 relative">
@@ -340,15 +343,17 @@ export default function VideoGrid() {
                   const count = paperVideos.length;
                   const completed = paperVideos.filter(v => v.progress === 100 || v.status === "Watched").length;
                   const left = count - completed;
-                  const percent = count > 0 ? Math.round((completed / count) * 100) : 0;
                   
                   const bgImg = hierarchy[activeSubject!]?.papers?.[paper]?.img || hierarchy[activeSubject!]?.img;
                   const customLabel = hierarchy[activeSubject!]?.papers?.[paper]?.label || "PAPER";
 
-                  // Calculate exact time lengths!
+                  // Calculate exact time lengths including PARTIAL progress!
                   const totalSeconds = paperVideos.reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                  const watchedSeconds = paperVideos.filter(v => v.progress === 100).reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                  const leftSeconds = totalSeconds - watchedSeconds;
+                  const watchedSeconds = paperVideos.reduce((acc, curr) => acc + ((curr.duration || 0) * ((curr.progress || 0) / 100)), 0);
+                  const leftSeconds = Math.max(0, totalSeconds - watchedSeconds);
+                  
+                  // Make the neon progress bar ultra-precise based on actual time watched
+                  const percent = totalSeconds > 0 ? Math.round((watchedSeconds / totalSeconds) * 100) : (count > 0 ? Math.round((completed / count) * 100) : 0);
 
                   return (
                     <div key={idx} onClick={() => { setActivePaper(paper); setViewLevel("chapters"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
@@ -391,15 +396,17 @@ export default function VideoGrid() {
                   const count = chapterVideos.length;
                   const completed = chapterVideos.filter(v => v.progress === 100 || v.status === "Watched").length;
                   const left = count - completed;
-                  const percent = count > 0 ? Math.round((completed / count) * 100) : 0;
                   
                   const bgImg = hierarchy[activeSubject!]?.papers?.[activePaper!]?.chapters?.[chapter]?.img || hierarchy[activeSubject!]?.papers?.[activePaper!]?.img || hierarchy[activeSubject!]?.img;
                   const customLabel = hierarchy[activeSubject!]?.papers?.[activePaper!]?.chapters?.[chapter]?.label || `Chapter ${idx + 1}`;
 
-                  // Calculate exact time lengths!
+                  // Calculate exact time lengths including PARTIAL progress!
                   const totalSeconds = chapterVideos.reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                  const watchedSeconds = chapterVideos.filter(v => v.progress === 100).reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                  const leftSeconds = totalSeconds - watchedSeconds;
+                  const watchedSeconds = chapterVideos.reduce((acc, curr) => acc + ((curr.duration || 0) * ((curr.progress || 0) / 100)), 0);
+                  const leftSeconds = Math.max(0, totalSeconds - watchedSeconds);
+                  
+                  // Make the neon progress bar ultra-precise based on actual time watched
+                  const percent = totalSeconds > 0 ? Math.round((watchedSeconds / totalSeconds) * 100) : (count > 0 ? Math.round((completed / count) * 100) : 0);
 
                   return (
                     <div key={idx} onClick={() => { setActiveChapter(chapter); setViewLevel("videos"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-fuchsia-500/50 hover:shadow-[0_0_30px_rgba(217,70,239,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
