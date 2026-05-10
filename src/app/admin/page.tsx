@@ -93,6 +93,7 @@ export default function MasterAdmin() {
   // Drag & Drop / Safe Delete States
   const [draggedNode, setDraggedNode] = useState<string | null>(null);
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+  const [nodePreview, setNodePreview] = useState<string | null>(null); // For Hierarchy image preview
   
   // --- SMART DATA ENGINES ---
   // 1. Auto-Fetch YT Meta Data & Extract Drive Links
@@ -1021,22 +1022,47 @@ export default function MasterAdmin() {
               targetDict[name] = nodeData;
               saveHierarchy(newH);
               setEditingNode(null);
+              setNodePreview(null); // Clear preview after saving
               (e.target as HTMLFormElement).reset();
               toast.success(`${name} saved! 📁`, { id: toastId });
             }} className="glass-panel p-5 rounded-2xl border border-white/5 bg-white/5 space-y-4 mb-8">
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-gray-200">{editingNode ? "Edit Mode (Rename & Update)" : `Add New ${!hPath.subject ? "Subject" : !hPath.paper ? "Paper" : "Chapter"}`}</h3>
-                {editingNode && <button type="button" onClick={() => setEditingNode(null)} className="text-xs text-rose-400 hover:text-rose-300">Cancel Edit</button>}
+                {editingNode && <button type="button" onClick={() => { setEditingNode(null); setNodePreview(null); }} className="text-xs text-rose-400 hover:text-rose-300">Cancel Edit</button>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end" id="hierarchy-form">
                 <div><label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold">Name <span className="text-gray-500 font-normal">({!hPath.subject ? "e.g. Physics" : "e.g. 1st Paper"})</span></label><input type="text" id="edit_name" name="node_name" defaultValue={editingNode?.oldName || ""} required className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-500 text-sm" /></div>
                 <div><label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold">Custom Label</label><input type="text" name="node_label" defaultValue={editingNode?.label || ""} placeholder="e.g. Week 1" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-500 text-sm" /></div>
                 
                 {/* Auto-fill the image URL input if we are editing an existing node */}
-                <div><label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold">Image URL <span className="text-gray-500 font-normal">(Auto YT)</span></label><input type="url" id="node_url_input" name="node_url" defaultValue={editingNode ? (!hPath.subject ? hierarchy[editingNode.oldName]?.img : !hPath.paper ? hierarchy[hPath.subject].papers[editingNode.oldName]?.img : hierarchy[hPath.subject].papers[hPath.paper].chapters[editingNode.oldName]?.img) || "" : ""} placeholder="https://..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-500 text-sm" /></div>
+                <div><label className="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold">Image URL <span className="text-gray-500 font-normal">(Auto YT)</span></label>
+                <input type="url" id="node_url_input" name="node_url" 
+                  defaultValue={editingNode ? (!hPath.subject ? hierarchy[editingNode.oldName]?.img : !hPath.paper ? hierarchy[hPath.subject].papers[editingNode.oldName]?.img : hierarchy[hPath.subject].papers[hPath.paper].chapters[editingNode.oldName]?.img) || "" : ""} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) { setNodePreview(null); return; }
+                    const ytId = getYouTubeID(val);
+                    setNodePreview(ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : val);
+                  }}
+                  placeholder="https://..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-cyan-500 text-sm" /></div>
                 
-                <div className="relative"><label className="block text-[10px] text-cyan-400 mb-1 uppercase tracking-wider font-bold">Local Upload</label><input type="file" name="node_img" accept="image/*" className="w-full file:bg-cyan-500/20 file:text-cyan-300 file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:mr-3 file:font-bold file:text-xs text-sm text-gray-400 bg-black/40 border border-white/10 rounded-xl p-1" /></div>
+                <div className="relative"><label className="block text-[10px] text-cyan-400 mb-1 uppercase tracking-wider font-bold">Local Upload</label>
+                <input type="file" name="node_img" accept="image/*" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setNodePreview(URL.createObjectURL(file));
+                  }}
+                  className="w-full file:bg-cyan-500/20 file:text-cyan-300 file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:mr-3 file:font-bold file:text-xs text-sm text-gray-400 bg-black/40 border border-white/10 rounded-xl p-1" /></div>
               </div>
+
+              {/* LIVE IMAGE PREVIEW UI */}
+              {nodePreview && (
+                <div className="mt-1 relative aspect-video w-32 rounded-lg overflow-hidden border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)] animate-fade-in">
+                  <img src={nodePreview} alt="preview" className="w-full h-full object-cover" />
+                  <div className="absolute top-1 right-1 bg-cyan-500 text-black text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Preview</div>
+                </div>
+              )}
+
               <button type="submit" className={`w-full py-3 rounded-xl border border-dashed text-sm font-bold transition jelly ${editingNode ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10' : 'border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10'}`}>{editingNode ? "Update Changes" : "Save to Database"}</button>
             </form>
 
@@ -1084,7 +1110,9 @@ export default function MasterAdmin() {
                     </div>
                     <div className="flex gap-1 z-10">
                       <button onClick={(e) => {
-                        e.stopPropagation(); setEditingNode({oldName: name, seq: data.seq, label: data.label});
+                        e.stopPropagation(); 
+                        setEditingNode({oldName: name, seq: data.seq, label: data.label});
+                        setNodePreview(data.img || null); // Show the existing image immediately
                         document.getElementById('hierarchy-form')?.scrollIntoView({ behavior: 'smooth' });
                       }} className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/30 transition jelly"><Edit2 className="w-3.5 h-3.5"/></button>
                       <button onClick={(e) => {
