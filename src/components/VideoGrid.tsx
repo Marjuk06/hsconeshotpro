@@ -73,9 +73,19 @@ export default function VideoGrid() {
     window.addEventListener("globalSearch", handleSearch as EventListener);
     window.addEventListener("classAdded", fetchVideos);
 
+    // --- SUPABASE REALTIME LIVE-SYNC ENGINE ---
+    // Listens to the cloud database and instantly updates the UI for ALL connected students
+    const realtimeChannel = supabase
+      .channel('live-videos-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, () => {
+        fetchVideos(); // Fetch fresh data instantly when an Admin uploads, edits, or deletes
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("classAdded", fetchVideos);
       window.removeEventListener("globalSearch", handleSearch as EventListener);
+      supabase.removeChannel(realtimeChannel); // Safely close connection when student leaves
     };
   }, []);
 
