@@ -50,6 +50,10 @@ export default function MasterAdmin() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list"); 
   const [isNavLoaded, setIsNavLoaded] = useState(false);
   
+  // Auth State
+  const [isLocked, setIsLocked] = useState(true);
+  const [pinInput, setPinInput] = useState("");
+  
   // Library Multi-Select & Modals
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleteAlertIds, setDeleteAlertIds] = useState<number[]>([]);
@@ -211,8 +215,21 @@ export default function MasterAdmin() {
       if (savedState.activeTab) setActiveTab(savedState.activeTab);
       if (savedState.hPath) setHPath(savedState.hPath);
     }
+    if (localStorage.getItem("hsc_admin_auth") === "0000") setIsLocked(false); 
     setIsNavLoaded(true);
   }, []);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput === "Mar(140075)") { 
+      localStorage.setItem("hsc_admin_auth", "0000");
+      setIsLocked(false);
+      toast.success("Access Granted! 🔓");
+    } else {
+      toast.error("Incorrect PIN ❌");
+      setPinInput("");
+    }
+  };
 
   // 2. Save Admin State automatically when you click around
   useEffect(() => {
@@ -532,6 +549,24 @@ export default function MasterAdmin() {
 
   // Prevent UI flashing while Memory Engine restores your location
   if (!isNavLoaded) return <div className="min-h-screen flex items-center justify-center text-indigo-400 font-bold animate-pulse bg-[#0B0F19]">Loading Admin Workstation...</div>;
+
+  if (isLocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-black z-0"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-rose-600/10 blur-[120px] z-0"></div>
+        <div className="glass-panel p-8 rounded-3xl z-10 w-full max-w-sm border border-white/10 shadow-2xl animate-fade-in flex flex-col items-center">
+          <div className="w-16 h-16 bg-rose-500/20 rounded-full flex items-center justify-center mb-6 border border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.3)]"><Shield className="text-rose-400 w-8 h-8"/></div>
+          <h2 className="text-2xl font-black mb-2 tracking-widest text-white">ADMIN <span className="text-rose-400">PORTAL</span></h2>
+          <p className="text-sm text-gray-400 mb-6 text-center">Enter your master PIN to access the workstation.</p>
+          <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
+            <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="••••" className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center tracking-[1em] text-white focus:outline-none focus:border-rose-500 transition" autoFocus />
+            <button type="submit" className="w-full py-3 bg-gradient-to-r from-rose-500 to-orange-500 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] jelly hover:scale-105 transition">Unlock Database</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

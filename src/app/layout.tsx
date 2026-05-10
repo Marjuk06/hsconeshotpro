@@ -7,8 +7,28 @@ import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "HSC OneShot Pro",
-  description: "FreeOne-shot classes.",
+  description: "Free One-shot classes.",
+  openGraph: {
+    title: "HSC OneShot Pro",
+    description: "Free One-shot classes.",
+    url: "https://hsconeshotpro.codenestui.top",
+    siteName: "HSC OneShot Pro",
+    images: [
+      {
+        url: "https://hsconeshotpro.codenestui.top/icon.png", // Shows your app icon by default
+        width: 800,
+        height: 600,
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
+
+
+
+
+
 
 export default function RootLayout({
   children,

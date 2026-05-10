@@ -30,7 +30,7 @@ export default function VideoGrid() {
   const [navLoaded, setNavLoaded] = useState(false);
   
   // Navigation & Search State
-  const [viewLevel, setViewLevel] = useState<"subjects" | "papers" | "chapters" | "videos">("subjects");
+  const [viewLevel, setViewLevel] = useState<"subjects" | "papers" | "chapters" | "videos" | "favorites">("subjects");
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [activePaper, setActivePaper] = useState<string | null>(null);
   const [activeChapter, setActiveChapter] = useState<string | null>(null);
@@ -165,6 +165,13 @@ export default function VideoGrid() {
         <div className="relative aspect-video bg-black/50 cursor-pointer rounded-t-3xl overflow-hidden border-b border-white/10">
           <img src={thumbUrl} alt="Thumbnail" className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-110 group-hover:opacity-40 transition-all duration-700 z-10" />
           
+          {/* DURATION PILL (Like YouTube) */}
+          {(video.duration || 0) > 0 && (
+            <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white border border-white/10 z-40 shadow-lg">
+              {formatTime(video.duration)}
+            </div>
+          )}
+
           <div className="absolute top-3 right-3 z-50 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button onClick={(e) => handleShare(e, video.id)} className="p-2.5 rounded-xl bg-black/60 backdrop-blur border border-white/10 hover:bg-white/10 transition jelly">
               <Share2 className="w-4 h-4 text-white" />
@@ -240,9 +247,17 @@ export default function VideoGrid() {
             </div>
           )}
           
-          {viewLevel === "subjects" && (
+          {(viewLevel === "subjects" || viewLevel === "favorites") && (
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide text-sm text-gray-300 mb-8">
-              <div className="glass-panel px-4 py-2.5 rounded-xl whitespace-nowrap flex items-center gap-2.5 self-center">
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => setViewLevel("subjects")} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 jelly ${viewLevel === "subjects" ? "bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]" : "glass-panel hover:bg-white/10 text-gray-400"}`}>
+                  <Library className="w-4 h-4" /> Subjects
+                </button>
+                <button onClick={() => setViewLevel("favorites")} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 jelly ${viewLevel === "favorites" ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)]" : "glass-panel hover:bg-white/10 text-gray-400"}`}>
+                  <Heart className={`w-4 h-4 ${viewLevel === "favorites" ? "fill-white" : ""}`} /> Favorites
+                </button>
+              </div>
+              <div className="glass-panel px-4 py-2.5 rounded-xl whitespace-nowrap flex items-center gap-2.5 self-center hidden sm:flex">
                 <Library className="w-4 h-4 text-indigo-400" /> Total: <span className="text-white font-bold">{total}</span>
               </div>
               <div className="glass-panel px-5 py-2.5 rounded-xl flex flex-col justify-center min-w-[200px] sm:min-w-[250px] gap-2 shrink-0">
@@ -435,6 +450,23 @@ export default function VideoGrid() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* FAVORITES GRID */}
+          {viewLevel === "favorites" && (
+            <div className="animate-fade-in pb-12">
+              <h2 className="text-2xl font-bold tracking-wider text-pink-400 flex items-center gap-2 mb-6"><Heart className="fill-pink-400 w-6 h-6"/> My Favorites</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {videos.filter(v => v.is_favorite).length > 0 ? (
+                  videos.filter(v => v.is_favorite).map((video) => renderVideoCard(video))
+                ) : (
+                  <div className="col-span-full text-center py-12 text-gray-500 flex flex-col items-center">
+                    <Heart className="w-12 h-12 mb-3 opacity-20" />
+                    <p>You haven't added any classes to your favorites yet.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Edit3, CheckCircle, FileText, Video as VideoIcon } from "lucide-react";
 import YouTube from "react-youtube";
 
+
 const getYouTubeID = (url: string) => {
   if (!url) return null;
   const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
