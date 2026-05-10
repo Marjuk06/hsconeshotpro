@@ -1,13 +1,28 @@
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const { data: video } = await supabase.from('videos').select('*').eq('id', params.id).single();
+// Force Next.js to always fetch fresh data and never cache this layout
+export const dynamic = 'force-dynamic';
 
-  if (!video) return { title: "Class Not Found" };
+export async function generateMetadata({ params }: any): Promise<Metadata> {
+  // 1. Safely await params (Required in newer Next.js versions to read the URL)
+  const resolvedParams = await params;
+  const classId = resolvedParams.id;
 
+  // 2. Fetch data from Supabase
+  const { data: video, error } = await supabase.from('videos').select('*').eq('id', classId).single();
+
+  // 3. Fallback: If it actually fails, show a generic title instead of "Not Found"
+  if (!video || error) {
+    return {
+      title: "HSC OneShot Pro Class",
+      description: "Watch this class on HSC OneShot Pro."
+    };
+  }
+
+  // 4. Extract High-Res YouTube Thumbnail
   const videoId = video.url.match(/(?:youtu\.be\/|youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-  const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : "https://hsconeshotpro.vercel.app/icon.png";
+  const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : "https://hsconeshotpro.codenestui.top/icon.png";
 
   return {
     title: `${video.title} | HSC OneShot Pro`,
@@ -15,7 +30,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     openGraph: {
       title: video.title,
       description: `${video.subject} • ${video.chapter}`,
-      url: `https://hsconeshotpro.vercel.app/study/${params.id}`,
+      url: `https://hsconeshotpro.codenestui.top/study/${classId}`,
       images: [{ url: thumbnailUrl, width: 1280, height: 720 }],
       type: "video.other",
     }
