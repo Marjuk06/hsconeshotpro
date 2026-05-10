@@ -79,6 +79,10 @@ export default function MasterAdmin() {
   const [loadingForm, setLoadingForm] = useState(false);
   const [bulkRows, setBulkRows] = useState([{ url: "", title: "", chapter: "" }]);
   const [sheets, setSheets] = useState([{ title: "Lecture Slide", url: "" }]);
+  const [prefetchThumb, setPrefetchThumb] = useState<string | null>(null); // For live thumbnail preview
+  
+  // The exact naming sequence for your lecture sheets
+  const SHEET_SEQUENCE = ["Lecture Slide", "Practice Sheet", "Solution Sheet", "Marked Book", "Bonus Material"];
 
   // Hierarchy & Smart Link States
   const [hierarchy, setHierarchy] = useState<Record<string, any>>({});
@@ -91,19 +95,44 @@ export default function MasterAdmin() {
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
   
   // --- SMART DATA ENGINES ---
-  // 1. Auto-Fetch YT Meta Data
+  // 1. Auto-Fetch YT Meta Data & Extract Drive Links
   const fetchYTData = async (url: string) => {
     const ytId = getYouTubeID(url);
     if (!ytId) return null;
     const toastId = toast.loading("Scraping YouTube Data... 🔍");
+    
     try {
+      const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+      if (apiKey) {
+        // Use your official API to get the description
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${ytId}&part=snippet&key=${apiKey}`);
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          const snippet = data.items[0].snippet;
+          const description = snippet.description || "";
+          
+          // Hunt for Google Drive links hidden anywhere in the description
+          const driveRegex = /(https?:\/\/drive\.google\.com\/[^\s\n]+)/g;
+          const driveLinks = description.match(driveRegex) || [];
+
+          toast.success("Auto-filled from YouTube! ✨", { id: toastId });
+          return { 
+            title: snippet.title || "", 
+            teacher: snippet.channelTitle || "", 
+            thumb: `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`,
+            driveLinks: [...new Set(driveLinks)] // Remove any duplicate links
+          };
+        }
+      }
+
+      // Fallback to basic fetch if API key fails
       const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
       const data = await res.json();
-      toast.success("Auto-filled from YouTube! ✨", { id: toastId });
-      return { title: data.title || "", teacher: data.author_name || "", thumb: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` };
+      toast.success("Auto-filled basic info! ✨", { id: toastId });
+      return { title: data.title || "", teacher: data.author_name || "", thumb: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, driveLinks: [] };
     } catch (e) {
       toast.dismiss(toastId);
-      return { title: "", teacher: "", thumb: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` };
+      return { title: "", teacher: "", thumb: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, driveLinks: [] };
     }
   };
 
@@ -379,7 +408,11 @@ export default function MasterAdmin() {
   };
 
   // --- ACTIONS: SMART BULK UPLOAD ---
-  const addSheetInput = () => setSheets([...sheets, { title: "Lecture Slide", url: "" }]);
+  const addSheetInput = () => {
+    // Automatically pick the next title in the sequence based on how many sheets currently exist
+    const nextTitle = SHEET_SEQUENCE[sheets.length] || "Extra Material";
+    setSheets([...sheets, { title: nextTitle, url: "" }]);
+  };
   const removeSheetInput = (index: number) => setSheets(sheets.filter((_, i) => i !== index));
   const updateSheet = (index: number, field: 'title' | 'url', value: string) => { const newSheets = [...sheets]; newSheets[index][field] = value; setSheets(newSheets); };
   const addBulkRow = () => setBulkRows([...bulkRows, { url: "", title: "", chapter: "" }]);
@@ -820,17 +853,40 @@ export default function MasterAdmin() {
                         <label className="block text-[10px] text-emerald-400 mb-1 uppercase tracking-wider font-bold flex justify-between">YouTube Link <span className="text-rose-500">*</span> <span className="text-gray-500 font-normal">Auto-fetches details</span></label>
                         <input type="url" id="single_url" name="single_url" required placeholder="https://youtu.be/..." 
                           defaultValue={formPrefill?.url || ""}
+                          onChange={(e) => {
+                            const ytId = getYouTubeID(e.target.value);
+                            if (ytId) setPrefetchThumb(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`);
+                            else setPrefetchThumb(null);
+                          }}
                           onBlur={async (e) => {
                             if(!e.target.value) return;
                             const ytData = await fetchYTData(e.target.value);
                             if (ytData) {
                               const titleInput = document.getElementById("single_title") as HTMLInputElement;
-                              if (titleInput) titleInput.value = ytData.title;
+                              if (titleInput && !titleInput.value) titleInput.value = ytData.title;
                               const teachInput = document.getElementsByName("teacher")[0] as HTMLInputElement;
                               if (teachInput && !teachInput.value) teachInput.value = ytData.teacher;
+                              
+                              // Magic: Auto-populate the sheets if Drive links were found in the description!
+                              if (ytData.driveLinks && ytData.driveLinks.length > 0) {
+                                const newSheets = (ytData.driveLinks as string[]).slice(0, 5).map((link: string, i: number) => ({
+                                  title: SHEET_SEQUENCE[i] || "Extra Material",
+                                  url: link
+                                }));
+                                setSheets(newSheets);
+                                toast.success(`Found ${newSheets.length} Drive link(s) in description! 📄`);
+                              }
                             }
                           }}
                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition text-sm shadow-inner" />
+                        
+                        {/* Instant YouTube Thumbnail Verification Preview */}
+                        {prefetchThumb && (
+                          <div className="mt-3 relative aspect-video w-32 rounded-lg overflow-hidden border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-fade-in">
+                             <img src={prefetchThumb} alt="preview" className="w-full h-full object-cover" />
+                             <div className="absolute top-1 right-1 bg-emerald-500 text-black text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Verified</div>
+                          </div>
+                        )}
                       </div>
                       <div><label className="block text-[10px] text-emerald-400 mb-1 uppercase tracking-wider font-bold">Class Title <span className="text-rose-500">*</span></label><input type="text" id="single_title" name="single_title" required placeholder="Vector One Shot - HSC 25" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition text-sm shadow-inner" /></div>
                       <div><label className="block text-[10px] text-emerald-400 mb-1 uppercase tracking-wider font-bold">Specific Chapter <span className="text-rose-500">*</span></label><input type="text" list="chapters-list" name="single_chapter" defaultValue={formPrefill?.chapter || ""} required placeholder="e.g. Vector" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition text-sm shadow-inner" /></div>
