@@ -158,17 +158,10 @@ export default function VideoGrid() {
 
   // --- REUSABLE VIDEO CARD COMPONENT ---
   const renderVideoCard = (video: any) => {
-    const vSub = video.subject || "Uncategorized";
-    const vPap = video.paper || "General";
-    const vChap = video.chapter || "Misc";
-    
-    const customThumb = 
-      hierarchy[vSub]?.papers?.[vPap]?.chapters?.[vChap]?.img || 
-      hierarchy[vSub]?.papers?.[vPap]?.img || 
-      hierarchy[vSub]?.img;
-
     const ytId = getYouTubeID(video.url);
-    const thumbUrl = customThumb || (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : "https://via.placeholder.com/640x360?text=Invalid+Link");
+    
+    // Always use the specific YouTube thumbnail for individual classes, ignoring the parent folder's custom image
+    const thumbUrl = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : "https://via.placeholder.com/640x360?text=Invalid+Link";
 
     return (
       <div key={video.id} className="glass-card tilt-card rounded-3xl group flex flex-col h-full relative border border-white/10 hover:border-indigo-500/50 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all duration-300" onClick={() => router.push(`/study/${video.id}`)}>
