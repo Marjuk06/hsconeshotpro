@@ -342,7 +342,7 @@ export default function VideoGrid() {
               </h2>
               <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
                 {newArrivals.map(video => (
-                  <div key={video.id} className="min-w-[280px] sm:min-w-[320px] snap-start shrink-0">
+                  <div key={video.id} className="w-[280px] sm:w-[320px] flex-none snap-start">
                     {renderVideoCard(video)}
                   </div>
                 ))}

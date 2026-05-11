@@ -12,20 +12,22 @@ export default function Navbar() {
   // Notification States
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [isRinging, setIsRinging] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Request Browser Notification Permission on load
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     const fetchNewClasses = async () => {
       const { data } = await supabase.from("videos").select("*").order("id", { ascending: false }).limit(10);
       if (data) {
         const recent24h = data.filter(n => {
-          // CRITICAL FIX: If it lacks a timestamp, it's an old legacy import. HIDE IT!
           if (!n.created_at) return false; 
-          
-          // Bulletproof Timezone Math
           const dbTime = new Date(n.created_at).getTime();
-          const nowTime = Date.now();
-          const hours = Math.abs(nowTime - dbTime) / (1000 * 60 * 60);
+          const hours = Math.abs(Date.now() - dbTime) / (1000 * 60 * 60);
           return hours <= 24;
         });
         setNotifications(recent24h);
@@ -33,11 +35,8 @@ export default function Navbar() {
     };
     fetchNewClasses();
     
-    // Auto-close notification dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setShowNotifs(false);
-      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) setShowNotifs(false);
     };
 
     window.addEventListener("classAdded", fetchNewClasses);
@@ -46,8 +45,39 @@ export default function Navbar() {
     // --- SUPABASE REALTIME LIVE-SYNC ENGINE FOR NAVBAR ---
     const realtimeChannel = supabase
       .channel('navbar-live-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, () => {
-        fetchNewClasses(); // Instantly update the bell when the Admin deploys a class
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, (payload) => {
+        fetchNewClasses(); 
+        
+        // ONLY trigger animations, sounds, and push notifications for BRAND NEW uploads
+        if (payload.eventType === 'INSERT') {
+          // 1. Trigger the CSS Ringing Animation
+          setIsRinging(true);
+          setTimeout(() => setIsRinging(false), 4000); // Stop ringing after 4 seconds
+          
+          // 2. Play the native notification Beep
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = "sine"; osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch beep
+            gain.gain.setValueAtTime(0.1, ctx.currentTime); osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+            osc.stop(ctx.currentTime + 0.5);
+          } catch (e) { console.log("Audio muted by browser policy until interaction"); }
+
+          // 3. Fire the OS-Level Web Push Notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            const newVideo = payload.new;
+            const ytId = newVideo.url?.match(/(?:youtu\.be\/|youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+            const iconUrl = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : '/favicon.ico';
+            
+            new Notification("New Class Uploaded! 🚀", {
+              body: `${newVideo.title}\n${newVideo.subject} • ${newVideo.chapter}`,
+              icon: iconUrl,
+            });
+          }
+        }
       })
       .subscribe();
     
@@ -83,10 +113,20 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
+        {/* Inject Custom Keyframes for Ringing Animation */}
+        <style>{`
+          @keyframes custom-ring {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: rotate(15deg); }
+            20%, 40%, 60%, 80% { transform: rotate(-15deg); }
+          }
+          .animate-ring { animation: custom-ring 0.6s ease-in-out infinite; }
+        `}</style>
+
         {/* Notifications */}
         <div className="relative" ref={notifRef}>
-          <button onClick={() => setShowNotifs(!showNotifs)} className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition relative jelly">
-            <Bell className="w-5 h-5 text-gray-300" />
+          <button onClick={() => setShowNotifs(!showNotifs)} className={`p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition relative jelly ${isRinging ? 'bg-fuchsia-500/20 border-fuchsia-500/50' : ''}`}>
+            <Bell className={`w-5 h-5 text-gray-300 origin-top ${isRinging ? 'animate-ring text-fuchsia-400' : ''}`} />
             {notifications.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-gray-900 animate-pulse"></span>}
           </button>
           
