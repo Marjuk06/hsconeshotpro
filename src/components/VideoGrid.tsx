@@ -36,9 +36,22 @@ export default function VideoGrid() {
   const [activeChapter, setActiveChapter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [userData, setUserData] = useState<Record<string, any>>({});
+
   const fetchVideos = async () => {
     const { data, error } = await supabase.from("videos").select("*").order("id", { ascending: false });
-    if (!error && data) setVideos(data);
+    if (!error && data) {
+      // Merge Global DB with Local Device Storage so every user has their own unique view
+      const stored = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+      const merged = data.map(v => ({
+        ...v,
+        status: stored[v.id]?.status || "New", // Everyone sees it as 'New' until THEY click it
+        progress: stored[v.id]?.progress || 0,
+        is_favorite: stored[v.id]?.is_favorite || false
+      }));
+      setVideos(merged);
+      setUserData(stored);
+    }
     setLoading(false);
   };
 
@@ -99,8 +112,16 @@ export default function VideoGrid() {
   const toggleFavorite = async (e: React.MouseEvent, video: any) => {
     e.stopPropagation();
     const newStatus = !video.is_favorite;
+    
+    // 1. Update UI Instantly
     setVideos(videos.map(v => v.id === video.id ? { ...v, is_favorite: newStatus } : v));
-    await supabase.from("videos").update({ is_favorite: newStatus }).eq("id", video.id);
+    
+    // 2. Save strictly to Local Device Storage so favorites don't mix between users!
+    const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+    currentData[video.id] = { ...(currentData[video.id] || {}), is_favorite: newStatus };
+    localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
+    setUserData(currentData);
+    
     toast.success(newStatus ? "Added to Favorites ❤️" : "Removed from Favorites");
   };
 

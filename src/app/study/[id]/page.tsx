@@ -40,8 +40,18 @@ export default function StudyRoom() {
     async function fetchVideo() {
       const { data, error } = await supabase.from("videos").select("*").eq("id", id).single();
       if (!error && data) {
-        setVideo(data);
-        setNotes(data.notes || "");
+        // Merge Global Video Data with Local Device Storage!
+        const stored = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+        const userV = stored[id as string] || {};
+        
+        setVideo({ 
+          ...data, 
+          status: userV.status || "New",
+          progress: userV.progress || 0,
+          last_position: userV.last_position || 0
+        });
+        setNotes(userV.notes || "");
+        
         if (data.sheets && data.sheets.length > 0) {
           setActiveSheet(data.sheets[0].url);
         }
@@ -51,15 +61,15 @@ export default function StudyRoom() {
     fetchVideo();
   }, [id]);
 
-  // Background Auto-Save Timer (Progress & Notes)
+  // Background Auto-Save Timer (Progress & Notes) to LOCAL STORAGE
   useEffect(() => {
     const interval = setInterval(async () => {
       if (playerRef.current && video) {
         const currentTime = await playerRef.current.getCurrentTime();
         const duration = await playerRef.current.getDuration();
         
-        let finalProgress = video.progress;
-        let status = video.status;
+        let finalProgress = video.progress || 0;
+        let status = video.status || "New";
 
         if (duration > 0) {
           const progressPct = Math.floor((currentTime / duration) * 100);
@@ -67,13 +77,16 @@ export default function StudyRoom() {
           status = finalProgress === 100 ? "Watched" : "Watching";
         }
 
-        // Silent background update
-        await supabase.from("videos").update({ 
+        // Save strictly to the user's current device (No DB mutation)
+        const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+        currentData[id as string] = {
+          ...(currentData[id as string] || {}),
           last_position: Math.floor(currentTime),
           progress: finalProgress,
           status: status,
           notes: notes
-        }).eq("id", id);
+        };
+        localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
       }
     }, 5000); 
 
@@ -81,7 +94,9 @@ export default function StudyRoom() {
   }, [video, id, notes]);
 
   async function markWatched() {
-    await supabase.from("videos").update({ status: "Watched", progress: 100 }).eq("id", id);
+    const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+    currentData[id as string] = { ...(currentData[id as string] || {}), status: "Watched", progress: 100 };
+    localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
     setVideo({ ...video, status: "Watched", progress: 100 });
   }
 
