@@ -236,16 +236,32 @@ export default function VideoGrid() {
         </div>
       ) : (
         <>
-          {/* STANDARD DASHBOARD VIEW */}
+          {/* RECENTLY ADDED (NEW ARRIVALS) */}
+          {viewLevel === "subjects" && videos.length > 0 && (
+            <div className="mb-10 animate-fade-in">
+              <h2 className="text-xl font-bold mb-4 text-emerald-100 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-400" /> New Arrivals
+              </h2>
+              <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
+                {videos.slice(0, 8).map(video => (
+                  <div key={video.id} className="min-w-[280px] sm:min-w-[320px] snap-start shrink-0">
+                    {renderVideoCard(video)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CONTINUE WATCHING */}
           {continueWatchingVideo && viewLevel === "subjects" && (
-            <div className="mb-6 animate-fade-in cursor-pointer jelly" onClick={() => router.push(`/study/${continueWatchingVideo.id}`)}>
-              <div className="glass-panel p-4 rounded-2xl border-indigo-500/30 bg-indigo-900/10 flex items-center gap-4 hover:bg-indigo-900/20 transition">
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide text-sm text-gray-300 mb-8">
+              <div onClick={() => router.push(`/study/${continueWatchingVideo.id}`)} className="glass-panel p-4 rounded-2xl border-indigo-500/30 bg-indigo-900/10 flex items-center gap-4 hover:bg-indigo-900/20 transition w-full cursor-pointer jelly">
                 <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0"><Play className="w-6 h-6 text-indigo-400" /></div>
-                <div className="flex-grow">
+                <div className="flex-grow overflow-hidden">
                   <p className="text-xs text-indigo-300 uppercase tracking-wider font-bold mb-0.5">Continue Watching</p>
-                  <h3 className="font-medium text-white truncate max-w-md">{continueWatchingVideo.title}</h3>
+                  <h3 className="font-medium text-white truncate w-full">{continueWatchingVideo.title}</h3>
                 </div>
-                <button className="bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium hidden sm:block">Resume</button>
+                <button className="bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium hidden sm:block shrink-0">Resume</button>
               </div>
             </div>
           )}

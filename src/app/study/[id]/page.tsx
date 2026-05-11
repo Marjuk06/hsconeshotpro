@@ -130,9 +130,10 @@ export default function StudyRoom() {
         </div>
       </div>
 
-      <div className="flex-grow flex flex-col lg:flex-row p-4 gap-4 overflow-hidden relative z-10 w-full h-full">
-        {/* Video Panel */}
-        <div className={`flex-grow rounded-2xl overflow-hidden glass-panel border border-white/10 flex flex-col shadow-2xl relative transition-all duration-500 ${showSidebar ? 'lg:w-[60%]' : 'w-full'}`}>
+      {/* Scrollable on Mobile, Hidden on Desktop */}
+      <div className="flex-grow flex flex-col lg:flex-row p-4 gap-4 overflow-y-auto overflow-x-hidden relative z-10 w-full h-full">
+        {/* Video Panel - Shrinks to 30vh on mobile when notes are open */}
+        <div className={`rounded-2xl overflow-hidden glass-panel border border-white/10 flex flex-col shadow-2xl relative shrink-0 lg:shrink transition-all duration-500 ${showSidebar ? 'h-[35vh] lg:h-auto lg:w-[60%]' : 'flex-grow w-full min-h-[40vh]'}`}>
           {ytId ? (
             <YouTube 
               videoId={ytId} 
