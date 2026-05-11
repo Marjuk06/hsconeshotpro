@@ -505,7 +505,9 @@ export default function MasterAdmin() {
       (e.target as HTMLFormElement).reset(); setBulkRows([{ url: "", title: "", chapter: "" }]); setSheets([{ title: "Lecture Slide", url: "" }]);
       fetchDatabase(); setActiveTab("library"); 
     } else {
-      toast.error("Error adding classes.", { id: toastId });
+      // THIS WILL PRINT THE EXACT REASON SUPABASE IS REJECTING IT
+      toast.error(`DB Error: ${error.message}`, { id: toastId, duration: 6000 });
+      console.error("Full DB Error:", error);
     }
   }
 
