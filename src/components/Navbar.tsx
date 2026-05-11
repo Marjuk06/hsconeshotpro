@@ -19,8 +19,8 @@ export default function Navbar() {
       const { data } = await supabase.from("videos").select("*").order("id", { ascending: false }).limit(10);
       if (data) {
         const recent24h = data.filter(n => {
-          // If it lacks a timestamp due to a DB delay, trust that it's new
-          if (!n.created_at) return true; 
+          // CRITICAL FIX: If it lacks a timestamp, it's an old legacy import. HIDE IT!
+          if (!n.created_at) return false; 
           
           // Bulletproof Timezone Math
           const dbTime = new Date(n.created_at).getTime();

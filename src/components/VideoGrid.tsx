@@ -160,7 +160,9 @@ export default function VideoGrid() {
   // --- LOGIC: RECENTLY UPLOADED (STRICT 24H & UNVISITED) ---
   const newArrivals = videos.filter(v => {
     if (v.status !== "New") return false; // Hides instantly when they watch it
-    if (!v.created_at) return true; // Trust new entries missing a timestamp
+    
+    // CRITICAL FIX: If it lacks a timestamp, it's an old legacy import. HIDE IT!
+    if (!v.created_at) return false; 
     
     // Bulletproof Timezone Math
     const dbTime = new Date(v.created_at).getTime();
