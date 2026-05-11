@@ -16,12 +16,16 @@ export default function Navbar() {
 
   useEffect(() => {
     const fetchNewClasses = async () => {
-      // Fetch newest, but strictly filter out anything older than 24 hours
       const { data } = await supabase.from("videos").select("*").order("id", { ascending: false }).limit(10);
       if (data) {
         const recent24h = data.filter(n => {
-          if (!n.created_at) return false;
-          const hours = (Date.now() - new Date(n.created_at).getTime()) / (1000 * 60 * 60);
+          // If it lacks a timestamp due to a DB delay, trust that it's new
+          if (!n.created_at) return true; 
+          
+          // Bulletproof Timezone Math
+          const dbTime = new Date(n.created_at).getTime();
+          const nowTime = Date.now();
+          const hours = Math.abs(nowTime - dbTime) / (1000 * 60 * 60);
           return hours <= 24;
         });
         setNotifications(recent24h);

@@ -159,9 +159,14 @@ export default function VideoGrid() {
 
   // --- LOGIC: RECENTLY UPLOADED (STRICT 24H & UNVISITED) ---
   const newArrivals = videos.filter(v => {
-    if (v.status !== "New" || !v.created_at) return false; // Must be unvisited AND have a valid DB timestamp
-    const hoursSince = (Date.now() - new Date(v.created_at).getTime()) / (1000 * 60 * 60);
-    return hoursSince <= 24; // Strictly less than 24 hours old
+    if (v.status !== "New") return false; // Hides instantly when they watch it
+    if (!v.created_at) return true; // Trust new entries missing a timestamp
+    
+    // Bulletproof Timezone Math
+    const dbTime = new Date(v.created_at).getTime();
+    const nowTime = Date.now();
+    const hours = Math.abs(nowTime - dbTime) / (1000 * 60 * 60);
+    return hours <= 24;
   });
 
   // Premium Fallback Gradients

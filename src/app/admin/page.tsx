@@ -499,6 +499,9 @@ export default function MasterAdmin() {
         toast.success(`${newClasses.length} Class(es) added!`, { id: toastId });
       }
 
+      // 🔥 INSTANT SHOUT: Tells the Navbar and VideoGrid to update immediately!
+      window.dispatchEvent(new Event("classAdded"));
+
       (e.target as HTMLFormElement).reset(); setBulkRows([{ url: "", title: "", chapter: "" }]); setSheets([{ title: "Lecture Slide", url: "" }]);
       fetchDatabase(); setActiveTab("library"); 
     } else {
