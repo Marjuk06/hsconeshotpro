@@ -38,10 +38,19 @@ export default function Navbar() {
 
     window.addEventListener("classAdded", fetchNewClasses);
     document.addEventListener("mousedown", handleClickOutside);
+
+    // --- SUPABASE REALTIME LIVE-SYNC ENGINE FOR NAVBAR ---
+    const realtimeChannel = supabase
+      .channel('navbar-live-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'videos' }, () => {
+        fetchNewClasses(); // Instantly update the bell when the Admin deploys a class
+      })
+      .subscribe();
     
     return () => {
       window.removeEventListener("classAdded", fetchNewClasses);
       document.removeEventListener("mousedown", handleClickOutside);
+      supabase.removeChannel(realtimeChannel);
     };
   }, []);
 

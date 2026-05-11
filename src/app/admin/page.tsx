@@ -435,6 +435,8 @@ export default function MasterAdmin() {
     const newClasses = [];
     const autoTagsArray = [subject, paper, teacher].filter(Boolean).map(str => `#${str.toLowerCase().replace(/\s+/g, '')}`);
 
+    const timestamp = new Date().toISOString(); // Define once to ensure exact sync
+
     if (isBulkMode) {
       for (const row of bulkRows) {
         if (!row.url.trim()) continue;
@@ -443,7 +445,12 @@ export default function MasterAdmin() {
         
         const chap = row.chapter || "Misc";
         const rowTags = [...autoTagsArray, `#${chap.toLowerCase().replace(/\s+/g, '')}`];
-        newClasses.push({ url: row.url, title: row.title, subject, paper, chapter: chap, teacher, tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, notes: "", duration: durationSecs });
+        newClasses.push({ 
+          url: row.url, title: row.title, subject, paper, chapter: chap, teacher, 
+          tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), 
+          sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, 
+          notes: "", duration: durationSecs, created_at: timestamp 
+        });
       }
     } else {
       const singleUrl = formData.get("single_url") as string;
@@ -452,7 +459,12 @@ export default function MasterAdmin() {
       
       const chap = formData.get("single_chapter") as string || "Misc";
       const rowTags = [...autoTagsArray, `#${chap.toLowerCase().replace(/\s+/g, '')}`];
-      newClasses.push({ url: singleUrl, title: formData.get("single_title") as string, subject, paper, chapter: chap, teacher, tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, notes: "", duration: durationSecs });
+      newClasses.push({ 
+        url: singleUrl, title: formData.get("single_title") as string, subject, paper, chapter: chap, teacher, 
+        tags: manualTags ? `${manualTags}, ${rowTags.join(', ')}` : rowTags.join(', '), 
+        sheets: validSheets, status: "New", progress: 0, is_favorite: false, last_position: 0, 
+        notes: "", duration: durationSecs, created_at: timestamp 
+      });
     }
 
     const { error } = await supabase.from("videos").insert(newClasses);
