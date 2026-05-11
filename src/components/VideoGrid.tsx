@@ -136,12 +136,11 @@ export default function VideoGrid() {
 
   const continueWatchingVideo = videos.find(v => v.status === "Watching");
 
-  // --- LOGIC: NEW ARRIVALS (LAST 24 HOURS & UNVISITED) ---
+  // --- LOGIC: RECENTLY UPLOADED (STRICT 24H & UNVISITED) ---
   const newArrivals = videos.filter(v => {
-    if (v.status !== "New") return false; // Instantly hides it if they have visited the class
-    const createdDate = new Date(v.created_at || Date.now()); 
-    const hoursSince = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60);
-    return hoursSince <= 24; // Only keep it if it's less than 24 hours old
+    if (v.status !== "New" || !v.created_at) return false; // Must be unvisited AND have a valid DB timestamp
+    const hoursSince = (Date.now() - new Date(v.created_at).getTime()) / (1000 * 60 * 60);
+    return hoursSince <= 24; // Strictly less than 24 hours old
   });
 
   // Premium Fallback Gradients
@@ -307,11 +306,11 @@ export default function VideoGrid() {
             </div>
           )}
 
-          {/* 3. NEW ARRIVALS (Below Menu Bar, Only 24h & Unvisited) */}
+          {/* 3. RECENTLY UPLOADED (Below Menu Bar, Only 24h & Unvisited) */}
           {viewLevel === "subjects" && newArrivals.length > 0 && (
             <div className="mb-10 animate-fade-in bg-emerald-900/10 border border-emerald-500/20 p-6 rounded-3xl">
               <h2 className="text-xl font-bold mb-4 text-emerald-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-400" /> Hot Drops (Last 24h)
+                <Sparkles className="w-5 h-5 text-emerald-400" /> Recently uploaded
               </h2>
               <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
                 {newArrivals.map(video => (

@@ -71,7 +71,7 @@ export default function Navbar() {
           </button>
           
           {showNotifs && (
-            <div className="absolute right-0 top-full mt-3 w-80 glass-panel border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-fade-in flex flex-col gap-3">
+            <div className="absolute right-0 top-full mt-3 w-80 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50 animate-fade-in flex flex-col gap-3">
               <h3 className="font-bold text-sm text-gray-200 border-b border-white/10 pb-2">Latest Classes Added</h3>
               {notifications.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-4">No new classes right now.</p>
