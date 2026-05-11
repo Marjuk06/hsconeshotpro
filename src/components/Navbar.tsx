@@ -16,9 +16,16 @@ export default function Navbar() {
 
   useEffect(() => {
     const fetchNewClasses = async () => {
-      // Force fetching the 5 absolute newest IDs, sorting descending
-      const { data } = await supabase.from("videos").select("*").order("id", { ascending: false }).limit(5);
-      if (data) setNotifications(data);
+      // Fetch newest, but strictly filter out anything older than 24 hours
+      const { data } = await supabase.from("videos").select("*").order("id", { ascending: false }).limit(10);
+      if (data) {
+        const recent24h = data.filter(n => {
+          if (!n.created_at) return false;
+          const hours = (Date.now() - new Date(n.created_at).getTime()) / (1000 * 60 * 60);
+          return hours <= 24;
+        });
+        setNotifications(recent24h);
+      }
     };
     fetchNewClasses();
     

@@ -31,7 +31,8 @@ export default function AddClassModal({ isOpen, onClose }: AddClassModalProps) {
       tags: formData.get("tags"),
       status: "New",
       progress: 0,
-      is_favorite: false
+      is_favorite: false,
+      created_at: new Date().toISOString() // <-- FIX: Force exact timestamp so 24-hour math works!
     };
 
     // Send to Supabase
