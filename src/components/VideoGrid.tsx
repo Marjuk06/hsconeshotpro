@@ -136,6 +136,14 @@ export default function VideoGrid() {
 
   const continueWatchingVideo = videos.find(v => v.status === "Watching");
 
+  // --- LOGIC: NEW ARRIVALS (LAST 24 HOURS & UNVISITED) ---
+  const newArrivals = videos.filter(v => {
+    if (v.status !== "New") return false; // Instantly hides it if they have visited the class
+    const createdDate = new Date(v.created_at || Date.now()); 
+    const hoursSince = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60);
+    return hoursSince <= 24; // Only keep it if it's less than 24 hours old
+  });
+
   // Premium Fallback Gradients
   const getGradient = (name: string) => {
     const s = name.toLowerCase();
@@ -236,23 +244,7 @@ export default function VideoGrid() {
         </div>
       ) : (
         <>
-          {/* RECENTLY ADDED (NEW ARRIVALS) */}
-          {viewLevel === "subjects" && videos.length > 0 && (
-            <div className="mb-10 animate-fade-in">
-              <h2 className="text-xl font-bold mb-4 text-emerald-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-400" /> New Arrivals
-              </h2>
-              <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
-                {videos.slice(0, 8).map(video => (
-                  <div key={video.id} className="min-w-[280px] sm:min-w-[320px] snap-start shrink-0">
-                    {renderVideoCard(video)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CONTINUE WATCHING */}
+          {/* 1. CONTINUE WATCHING BANNERS */}
           {continueWatchingVideo && viewLevel === "subjects" && (
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide text-sm text-gray-300 mb-8">
               <div onClick={() => router.push(`/study/${continueWatchingVideo.id}`)} className="glass-panel p-4 rounded-2xl border-indigo-500/30 bg-indigo-900/10 flex items-center gap-4 hover:bg-indigo-900/20 transition w-full cursor-pointer jelly">
@@ -266,6 +258,7 @@ export default function VideoGrid() {
             </div>
           )}
           
+          {/* 2. MAIN NAV BAR (Subjects, Favorites, Stats) */}
           {(viewLevel === "subjects" || viewLevel === "favorites") && (
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide text-sm text-gray-300 mb-8">
               <div className="flex gap-2 shrink-0">
@@ -291,7 +284,8 @@ export default function VideoGrid() {
             </div>
           )}
 
-          {viewLevel !== "subjects" && (
+          {/* BREADCRUMBS */}
+          {viewLevel !== "subjects" && viewLevel !== "favorites" && (
             <div className="flex items-center gap-2 text-sm text-gray-400 mb-8 animate-fade-in bg-black/40 p-3 rounded-xl border border-white/5 w-max backdrop-blur-md shadow-lg">
               <button onClick={() => setViewLevel("subjects")} className="hover:text-white flex items-center gap-1 transition"><Library className="w-4 h-4"/> Subjects</button>
               <ChevronRight className="w-4 h-4 opacity-50" />
@@ -310,6 +304,22 @@ export default function VideoGrid() {
                   <span className="text-emerald-400 font-bold">{activeChapter}</span>
                 </>
               )}
+            </div>
+          )}
+
+          {/* 3. NEW ARRIVALS (Below Menu Bar, Only 24h & Unvisited) */}
+          {viewLevel === "subjects" && newArrivals.length > 0 && (
+            <div className="mb-10 animate-fade-in bg-emerald-900/10 border border-emerald-500/20 p-6 rounded-3xl">
+              <h2 className="text-xl font-bold mb-4 text-emerald-100 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-400" /> Hot Drops (Last 24h)
+              </h2>
+              <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
+                {newArrivals.map(video => (
+                  <div key={video.id} className="min-w-[280px] sm:min-w-[320px] snap-start shrink-0">
+                    {renderVideoCard(video)}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
