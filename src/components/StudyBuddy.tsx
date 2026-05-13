@@ -11,6 +11,8 @@ export default function StudyBuddy() {
   const [isMuted, setIsMuted] = useState(false);
   const [tier, setTier] = useState<"beginner" | "intermediate" | "advanced">("beginner");
 
+  const isStudyRoom = pathname?.startsWith("/study/");
+
   // --- AUDIO SYNTHESIS ENGINE (No external files needed) ---
   const playSound = (type: "pop" | "bloop") => {
     if (isMuted) return;
@@ -49,11 +51,11 @@ export default function StudyBuddy() {
     setMsg(message);
     setMood(currentMood);
     setShowMsg(true);
-    playSound("pop"); // Satisfying pop when it talks
+    playSound("pop"); 
     
     setTimeout(() => {
       setShowMsg(false);
-      setTimeout(() => setMood("idle"), 300); // Wait for bubble to fade before resetting mood
+      setTimeout(() => setMood("idle"), 300); 
     }, duration);
   };
 
@@ -62,72 +64,78 @@ export default function StudyBuddy() {
       const stored = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
       const watchedCount = Object.values(stored).filter((v: any) => v.status === 'Watched' || v.progress === 100).length;
       
-      if (watchedCount >= 20) setTier("advanced");      // Gold + Cap
-      else if (watchedCount >= 5) setTier("intermediate"); // Cyan
-      else setTier("beginner");                         // Purple
+      if (watchedCount >= 20) setTier("advanced");      
+      else if (watchedCount >= 5) setTier("intermediate"); 
+      else setTier("beginner");                         
     } catch(e) {}
   };
 
   // --- GLOBAL EVENT LISTENERS & TIMERS ---
   useEffect(() => {
-    checkEvolution(); // Check tier on load
+    checkEvolution(); 
 
-    // 1. Initial Greeting
-    const hour = new Date().getHours();
-    let greeting = "Ready to crush some chapters? 🔥";
-    if (hour < 5 || hour >= 22) greeting = "Late night study? Respect 🌙";
-    else if (hour < 12) greeting = "Start your day strong 💪";
-    
-    const initialTimer = setTimeout(() => { smartAssistant(greeting, "happy", 4000); }, 1000);
+    // 1. Initial Greeting (Only on Dashboard)
+    let initialTimer: NodeJS.Timeout;
+    if (!isStudyRoom) {
+      const hour = new Date().getHours();
+      let greeting = "Ready to crush some chapters? 🔥";
+      if (hour < 5 || hour >= 22) greeting = "Late night study? Respect 🌙";
+      else if (hour < 12) greeting = "Start your day strong 💪";
+      initialTimer = setTimeout(() => { smartAssistant(greeting, "happy", 4000); }, 1000);
+    }
 
     // 2. Achievement Unlocked Listener
     const handleClassWatched = (e: any) => {
       const chapter = e.detail?.chapter || "that chapter";
       setTimeout(() => {
-        checkEvolution(); // Recalculate rank instantly
+        checkEvolution(); 
         smartAssistant(`Awesome job finishing ${chapter}! 🎉`, "happy", 6000);
       }, 500);
     };
 
-    // 3. Idle & Focus Timers
+    // 3. Idle & Pomodoro Focus Timers
     let idleTimer: NodeJS.Timeout;
-    let breakTimer: NodeJS.Timeout;
+    let focusInterval: NodeJS.Timeout;
 
+    // Idle Timer (Only runs on Dashboard)
     const resetIdleTimer = () => {
       clearTimeout(idleTimer);
-      if (pathname === '/') { // Only nudge them if they are staring at the dashboard
+      if (!isStudyRoom) { 
         idleTimer = setTimeout(() => {
           smartAssistant("Don't just stare at the screen, pick a subject! 👀", "shocked", 4000);
-        }, 5 * 60 * 1000); // 5 minutes idle
+        }, 5 * 60 * 1000); 
       }
     };
 
-    const startBreakTimer = () => {
-      clearInterval(breakTimer);
-      breakTimer = setInterval(() => {
-        smartAssistant("You've been studying hard. Drink some water and take a 5-minute break! 💧", "sleepy", 6000);
-      }, 50 * 60 * 1000); // 50 minutes continuous focus
-    };
+    // Focus Timer (Only runs in Study Room)
+    let studyMinutes = 0;
+    if (isStudyRoom) {
+      focusInterval = setInterval(() => {
+        studyMinutes += 1;
+        if (studyMinutes === 25) {
+          smartAssistant("25 minutes of focus! Take a quick 5-min stretch break. ☕", "happy", 8000);
+        } else if (studyMinutes === 50) {
+          smartAssistant("50 mins! You're on fire! 🔥 Rest your eyes and drink water! 💧", "sleepy", 8000);
+          studyMinutes = 0; // Reset loop
+        }
+      }, 60 * 1000); // Ticks exactly every 1 minute
+    }
 
     window.addEventListener('classWatched', handleClassWatched);
     window.addEventListener('mousemove', resetIdleTimer);
     window.addEventListener('keydown', resetIdleTimer);
     
     resetIdleTimer();
-    startBreakTimer();
 
     return () => {
       clearTimeout(initialTimer);
       clearTimeout(idleTimer);
-      clearInterval(breakTimer);
+      clearInterval(focusInterval);
       window.removeEventListener('classWatched', handleClassWatched);
       window.removeEventListener('mousemove', resetIdleTimer);
       window.removeEventListener('keydown', resetIdleTimer);
     };
-  }, [pathname, isMuted]);
-
-  // Hide entirely inside Study Rooms
-  if (pathname?.startsWith("/study/")) return null;
+  }, [pathname, isMuted, isStudyRoom]); // Auto-resets timers when changing pages
 
   // --- INTERACTIONS ---
   const handleDoubleClick = () => {
@@ -150,8 +158,7 @@ export default function StudyBuddy() {
 
   const pokeAssistant = () => {
     if (isMuted) return;
-    playSound("bloop"); // Cute bloop when poked
-    
+    playSound("bloop"); 
     const actions = [
       () => smartAssistant("Hehe 😄 Let's study!", "happy"),
       () => smartAssistant("Don't ignore me 🥺", "sad"),
@@ -164,7 +171,12 @@ export default function StudyBuddy() {
   };
 
   return (
-    <div className="fixed bottom-6 left-6 z-[90] flex flex-col items-start gap-3 transition-all duration-500 origin-bottom-left">
+    // 🔥 THE POP-UP MAGIC: Hides dynamically if in Study Room and idle 🔥
+    <div className={`fixed bottom-6 left-6 z-[90] flex flex-col items-start gap-3 transition-all duration-700 ease-out origin-bottom-left ${
+      isStudyRoom && !showMsg 
+        ? 'translate-y-32 opacity-0 pointer-events-none scale-50' 
+        : 'translate-y-0 opacity-100 scale-100'
+    }`}>
       
       {/* Message Bubble */}
       <div 
