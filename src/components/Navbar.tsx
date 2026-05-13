@@ -125,7 +125,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
+      <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-end">
         {/* Inject Custom Keyframes for Ringing Animation */}
         <style>{`
           @keyframes custom-ring {
@@ -136,15 +136,21 @@ export default function Navbar() {
           .animate-ring { animation: custom-ring 0.6s ease-in-out infinite; }
         `}</style>
 
-        {/* Notifications */}
-        <div className="relative" ref={notifRef}>
+        {/* Global Search (Moved to left of bell so Bell sits on the far right edge) */}
+        <div className="relative flex-grow sm:w-64 group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-400 transition" />
+          <input type="text" onChange={(e) => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent("globalSearch", { detail: e.target.value }))} placeholder="Search classes..." className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner" />
+        </div>
+
+        {/* Notifications (Moved to right edge) */}
+        <div className="relative shrink-0" ref={notifRef}>
           <button onClick={handleBellClick} className={`p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition relative jelly ${isRinging ? 'bg-fuchsia-500/20 border-fuchsia-500/50' : ''}`}>
             <Bell className={`w-5 h-5 text-gray-300 origin-top ${isRinging ? 'animate-ring text-fuchsia-400' : ''}`} />
             {notifications.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-gray-900 animate-pulse"></span>}
           </button>
           
           {showNotifs && (
-            <div className="absolute right-0 top-full mt-3 w-80 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50 animate-fade-in flex flex-col gap-3">
+            <div className="absolute right-0 top-full mt-3 w-[85vw] max-w-[320px] sm:w-80 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50 animate-fade-in flex flex-col gap-3">
               <div className="flex justify-between items-center border-b border-white/10 pb-2">
                 <h3 className="font-bold text-sm text-gray-200">Latest Drops</h3>
                 {notifications.length > 0 && (
@@ -172,12 +178,6 @@ export default function Navbar() {
               )}
             </div>
           )}
-        </div>
-
-        {/* Global Search */}
-        <div className="relative flex-grow sm:w-64 group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-400 transition" />
-          <input type="text" onChange={(e) => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent("globalSearch", { detail: e.target.value }))} placeholder="Search classes, tags, subjects..." className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-inner" />
         </div>
       </div>
     </nav>

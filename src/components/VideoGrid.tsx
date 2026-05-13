@@ -71,15 +71,33 @@ export default function VideoGrid() {
       }
     };
     loadCloudHierarchy();
-    // Restore Navigation State (Permanent Local Memory)
-    const savedState = JSON.parse(localStorage.getItem("hsc_nav_state") || "null");
-    if (savedState) {
-      setViewLevel(savedState.viewLevel || "subjects");
-      setActiveSubject(savedState.activeSubject);
-      setActivePaper(savedState.activePaper);
-      setActiveChapter(savedState.activeChapter);
-    }
-    setNavLoaded(true);
+    // --- SMART URL HASH NAVIGATION SYSTEM (Enables Browser Back/Forward) ---
+    const handlePopState = (e?: PopStateEvent) => {
+      const state = e?.state || window.history.state;
+      if (state && state.level) {
+        setViewLevel(state.level);
+        setActiveSubject(state.subj);
+        setActivePaper(state.paper);
+        setActiveChapter(state.chap);
+      } else {
+        const hash = window.location.hash;
+        if (hash.startsWith("#/subject/")) {
+          const parts = hash.replace("#/subject/", "").split("/").map(decodeURIComponent);
+          setActiveSubject(parts[0] || null);
+          setActivePaper(parts[1] || null);
+          setActiveChapter(parts[2] || null);
+          setViewLevel(parts[2] ? "videos" : parts[1] ? "chapters" : "papers");
+        } else if (hash === "#/favorites") {
+          setViewLevel("favorites");
+        } else {
+          setViewLevel("subjects");
+        }
+      }
+      setNavLoaded(true);
+    };
+
+    handlePopState(); // Process initial URL load
+    window.addEventListener("popstate", handlePopState as EventListener);
 
     // Global Search Interceptor
     const handleSearch = (e: any) => setSearchQuery(e.detail || "");
@@ -102,12 +120,22 @@ export default function VideoGrid() {
     };
   }, []);
 
-  // Save State Automatically
-  useEffect(() => {
-    if (navLoaded) {
-      localStorage.setItem("hsc_nav_state", JSON.stringify({viewLevel, activeSubject, activePaper, activeChapter}));
+  // --- SMART ROUTER FUNCTION ---
+  const navigateTo = (level: any, subj: string | null = null, paper: string | null = null, chap: string | null = null) => {
+    setViewLevel(level);
+    setActiveSubject(subj);
+    setActivePaper(paper);
+    setActiveChapter(chap);
+    
+    let hash = "#/";
+    if (level === "favorites") hash = "#/favorites";
+    else if (subj) {
+      hash = `#/subject/${encodeURIComponent(subj)}`;
+      if (paper) hash += `/${encodeURIComponent(paper)}`;
+      if (chap) hash += `/${encodeURIComponent(chap)}`;
     }
-  }, [viewLevel, activeSubject, activePaper, activeChapter, navLoaded]);
+    window.history.pushState({ level, subj, paper, chap }, "", hash);
+  };
 
   const toggleFavorite = async (e: React.MouseEvent, video: any) => {
     e.stopPropagation();
@@ -289,10 +317,10 @@ export default function VideoGrid() {
           {(viewLevel === "subjects" || viewLevel === "favorites") && (
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide text-sm text-gray-300 mb-8">
               <div className="flex gap-2 shrink-0">
-                <button onClick={() => setViewLevel("subjects")} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 jelly ${viewLevel === "subjects" ? "bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]" : "glass-panel hover:bg-white/10 text-gray-400"}`}>
+                <button onClick={() => navigateTo("subjects")} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 jelly ${viewLevel === "subjects" ? "bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]" : "glass-panel hover:bg-white/10 text-gray-400"}`}>
                   <Library className="w-4 h-4" /> Subjects
                 </button>
-                <button onClick={() => setViewLevel("favorites")} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 jelly ${viewLevel === "favorites" ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)]" : "glass-panel hover:bg-white/10 text-gray-400"}`}>
+                <button onClick={() => navigateTo("favorites")} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 jelly ${viewLevel === "favorites" ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.5)]" : "glass-panel hover:bg-white/10 text-gray-400"}`}>
                   <Heart className={`w-4 h-4 ${viewLevel === "favorites" ? "fill-white" : ""}`} /> Favorites
                 </button>
               </div>
@@ -313,15 +341,15 @@ export default function VideoGrid() {
 
           {/* BREADCRUMBS */}
           {viewLevel !== "subjects" && viewLevel !== "favorites" && (
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-8 animate-fade-in bg-black/40 p-3 rounded-xl border border-white/5 w-max backdrop-blur-md shadow-lg">
-              <button onClick={() => setViewLevel("subjects")} className="hover:text-white flex items-center gap-1 transition"><Library className="w-4 h-4"/> Subjects</button>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-8 animate-fade-in bg-black/40 p-3 rounded-xl border border-white/5 w-full sm:w-max max-w-full backdrop-blur-md shadow-lg">
+              <button onClick={() => navigateTo("subjects")} className="hover:text-white flex items-center gap-1 transition"><Library className="w-4 h-4"/> Subjects</button>
               <ChevronRight className="w-4 h-4 opacity-50" />
-              <button onClick={() => setViewLevel("papers")} className={`transition ${viewLevel === "papers" ? "text-indigo-400 font-bold" : "hover:text-white"}`}>{activeSubject}</button>
+              <button onClick={() => navigateTo("papers", activeSubject)} className={`transition ${viewLevel === "papers" ? "text-indigo-400 font-bold" : "hover:text-white"}`}>{activeSubject}</button>
               
               {(viewLevel === "chapters" || viewLevel === "videos") && (
                 <>
                   <ChevronRight className="w-4 h-4 opacity-50" />
-                  <button onClick={() => setViewLevel("chapters")} className={`transition ${viewLevel === "chapters" ? "text-fuchsia-400 font-bold" : "hover:text-white"}`}>{activePaper}</button>
+                  <button onClick={() => navigateTo("chapters", activeSubject, activePaper)} className={`transition ${viewLevel === "chapters" ? "text-fuchsia-400 font-bold" : "hover:text-white"}`}>{activePaper}</button>
                 </>
               )}
 
@@ -372,7 +400,7 @@ export default function VideoGrid() {
                   // Make the neon progress bar ultra-precise based on actual time watched
                   const percent = totalSeconds > 0 ? Math.round((watchedSeconds / totalSeconds) * 100) : (count > 0 ? Math.round((completed / count) * 100) : 0);
                   return (
-                    <div key={idx} onClick={() => { setActiveSubject(subject); setViewLevel("papers"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-indigo-500/50 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
+                    <div key={idx} onClick={() => navigateTo("papers", subject)} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-indigo-500/50 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
                       <div className="bg-black/40 backdrop-blur-md px-4 py-2.5 border-b border-white/10 flex justify-between items-center z-20 relative">
                         <p className="text-[10px] font-bold text-indigo-300 tracking-wider uppercase">{customLabel}</p>
                         <FolderOpen className="w-4 h-4 text-indigo-400 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
@@ -427,7 +455,7 @@ export default function VideoGrid() {
                   const percent = totalSeconds > 0 ? Math.round((watchedSeconds / totalSeconds) * 100) : (count > 0 ? Math.round((completed / count) * 100) : 0);
 
                   return (
-                    <div key={idx} onClick={() => { setActivePaper(paper); setViewLevel("chapters"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
+                    <div key={idx} onClick={() => navigateTo("chapters", activeSubject, paper)} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
                       <div className="bg-black/40 backdrop-blur-md px-4 py-2.5 border-b border-white/10 flex justify-between items-center z-20 relative">
                         <p className="text-[10px] font-bold text-blue-300 tracking-wider uppercase">{customLabel}</p>
                         <FolderOpen className="w-4 h-4 text-blue-400 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
@@ -480,7 +508,7 @@ export default function VideoGrid() {
                   const percent = totalSeconds > 0 ? Math.round((watchedSeconds / totalSeconds) * 100) : (count > 0 ? Math.round((completed / count) * 100) : 0);
 
                   return (
-                    <div key={idx} onClick={() => { setActiveChapter(chapter); setViewLevel("videos"); }} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-fuchsia-500/50 hover:shadow-[0_0_30px_rgba(217,70,239,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
+                    <div key={idx} onClick={() => navigateTo("videos", activeSubject, activePaper, chapter)} className="rounded-2xl overflow-hidden cursor-pointer group glass-card hover:border-fuchsia-500/50 hover:shadow-[0_0_30px_rgba(217,70,239,0.3)] hover:-translate-y-1 transition-all duration-300 relative shadow-lg">
                       <div className="bg-black/40 backdrop-blur-md px-4 py-2.5 border-b border-white/10 flex justify-between items-center z-20 relative">
                         <p className="text-[10px] font-bold text-gray-300 tracking-wider uppercase">{customLabel}</p>
                         <FolderOpen className="w-4 h-4 text-fuchsia-400 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
@@ -532,7 +560,7 @@ export default function VideoGrid() {
             <div className="animate-fade-in pb-12">
               <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
                 <h2 className="text-2xl font-bold tracking-wider text-gray-100 flex items-center gap-2"><BookOpen className="text-emerald-400 w-6 h-6"/> {activeChapter}</h2>
-                <button onClick={() => handleShare({stopPropagation: ()=>{}} as any, 0)} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-300 transition flex items-center gap-2 jelly"><Share2 className="w-3.5 h-3.5" /> Share Chapter</button>
+                <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Chapter link copied to clipboard! 🔗"); }} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-300 transition flex items-center gap-2 jelly"><Share2 className="w-3.5 h-3.5" /> Share Chapter</button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {finalVideos.map((video) => renderVideoCard(video))}
