@@ -64,6 +64,7 @@ export default function MasterAdmin() {
   // EDIT Modal State
   const [editingVideo, setEditingVideo] = useState<any | null>(null);
   const [editSheets, setEditSheets] = useState<{title: string, url: string}[]>([{ title: "Lecture Slide", url: "" }]);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     if (editingVideo) {
@@ -377,6 +378,7 @@ export default function MasterAdmin() {
   // --- ACTIONS: FULL EDIT SYSTEM ---
   const submitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSavingEdit(true);
     const formData = new FormData(e.currentTarget);
     
     // Filter out any empty sheet rows before saving
@@ -391,6 +393,7 @@ export default function MasterAdmin() {
     const { error } = await supabase.from("videos").update(updates).eq("id", editingVideo.id);
     if (!error) { toast.success("Class updated!", { id: toastId }); setEditingVideo(null); fetchDatabase(); } 
     else toast.error("Failed to update.", { id: toastId });
+    setIsSavingEdit(false);
   };
 
   // --- ACTIONS: FACTORY RESET (GLOBAL CLOUD WIPE) ---
@@ -943,7 +946,10 @@ export default function MasterAdmin() {
                           </div>
                         ))}
                       </div>
-                      <button type="button" onClick={addSheetInput} className="mt-4 text-xs flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition jelly bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
+                      
+                      <div className="flex justify-center mt-5">
+                        <button type="button" onClick={addSheetInput} className="px-4 py-2 rounded-full glass-panel border border-white/10 text-[11px] flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition font-bold uppercase tracking-wider shadow-lg"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -973,8 +979,9 @@ export default function MasterAdmin() {
                 </div>
               )}
 
-              <button disabled={loadingForm} type="submit" className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-4 rounded-xl hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition duration-300 jelly disabled:opacity-50 text-base">
-                {loadingForm ? "Processing Transaction..." : isBulkMode ? `Deploy ${bulkRows.length} Classes to Database` : "Deploy Class to Database"}
+              <button disabled={loadingForm} type="submit" className={`relative w-full py-4 rounded-xl font-bold transition-all duration-300 overflow-hidden border text-base ${loadingForm ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] text-black' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white jelly'}`}>
+                <div className={`absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-[2500ms] ease-out ${loadingForm ? 'w-full' : 'w-0'}`}></div>
+                <span className="relative z-10">{loadingForm ? "Processing Transaction..." : isBulkMode ? `Deploy ${bulkRows.length} Classes to Database` : "Deploy Class to Database"}</span>
               </button>
             </form>
           </div>
@@ -1297,14 +1304,21 @@ export default function MasterAdmin() {
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => {
-                const nextTitle = SHEET_SEQUENCE[editSheets.length] || "Extra Material";
-                setEditSheets([...editSheets, { title: nextTitle, url: "" }]);
-              }} className="mt-3 text-[10px] flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition font-bold uppercase tracking-wider"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
+              
+              <div className="flex justify-center mt-4">
+                <button type="button" onClick={() => {
+                  const nextTitle = SHEET_SEQUENCE[editSheets.length] || "Extra Material";
+                  setEditSheets([...editSheets, { title: nextTitle, url: "" }]);
+                }} className="px-4 py-2 rounded-full glass-panel border border-white/10 text-[11px] flex items-center gap-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition font-bold uppercase tracking-wider shadow-lg"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
+              </div>
             </div>
 
           </div>
-          <button type="submit" className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold transition jelly shadow-[0_0_15px_rgba(245,158,11,0.4)]">Save Changes</button>
+          
+          <button disabled={isSavingEdit} type="submit" className={`relative w-full py-3.5 rounded-xl font-bold transition-all duration-300 overflow-hidden border ${isSavingEdit ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-black' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white jelly'}`}>
+            <div className={`absolute top-0 left-0 h-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-[2500ms] ease-out ${isSavingEdit ? 'w-full' : 'w-0'}`}></div>
+            <span className="relative z-10">{isSavingEdit ? "Applying Changes..." : "Save Changes"}</span>
+          </button>
         </form>
       </div>
     )}
