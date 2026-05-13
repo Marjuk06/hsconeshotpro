@@ -51,8 +51,10 @@ export default function MasterAdmin() {
   const [isNavLoaded, setIsNavLoaded] = useState(false);
   
   // Auth State
-  const [isLocked, setIsLocked] = useState(true);
-  const [pinInput, setPinInput] = useState("");
+  const [session, setSession] = useState<any>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   
   // Library Multi-Select & Modals
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -237,28 +239,45 @@ export default function MasterAdmin() {
     fetchGlobalHierarchy();
   }, []);
 
-  // --- ADMIN NAVIGATION MEMORY ---
-  // 1. Restore Admin State on Load
+  // --- ADMIN NAVIGATION MEMORY & SUPABASE AUTH ---
   useEffect(() => {
+    // Restore Tabs
     const savedState = JSON.parse(localStorage.getItem("hsc_admin_state") || "null");
     if (savedState) {
       if (savedState.activeTab) setActiveTab(savedState.activeTab);
       if (savedState.hPath) setHPath(savedState.hPath);
     }
-    if (localStorage.getItem("hsc_admin_auth") === "0000") setIsLocked(false); 
-    setIsNavLoaded(true);
+
+    // Check actual Supabase Auth Session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsNavLoaded(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === "Mar(140075)") { 
-      localStorage.setItem("hsc_admin_auth", "0000");
-      setIsLocked(false);
-      toast.success("Access Granted! 🔓");
+    setLoginLoading(true);
+    const toastId = toast.loading("Authenticating...");
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    });
+
+    if (error) {
+      toast.error(`Access Denied: ${error.message} ❌`, { id: toastId });
     } else {
-      toast.error("Incorrect PIN ❌");
-      setPinInput("");
+      toast.success("Access Granted! VIP Wristband attached. 🔓", { id: toastId });
+      setSession(data.session);
     }
+    setLoginLoading(false);
   };
 
   // 2. Save Admin State automatically when you click around
@@ -601,7 +620,7 @@ export default function MasterAdmin() {
   // Prevent UI flashing while Memory Engine restores your location
   if (!isNavLoaded) return <div className="min-h-screen flex items-center justify-center text-indigo-400 font-bold animate-pulse bg-[#0B0F19]">Loading Admin Workstation...</div>;
 
-  if (isLocked) {
+  if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-black z-0"></div>
@@ -609,10 +628,13 @@ export default function MasterAdmin() {
         <div className="glass-panel p-8 rounded-3xl z-10 w-full max-w-sm border border-white/10 shadow-2xl animate-fade-in flex flex-col items-center">
           <div className="w-16 h-16 bg-rose-500/20 rounded-full flex items-center justify-center mb-6 border border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.3)]"><Shield className="text-rose-400 w-8 h-8"/></div>
           <h2 className="text-2xl font-black mb-2 tracking-widest text-white">ADMIN <span className="text-rose-400">PORTAL</span></h2>
-          <p className="text-sm text-gray-400 mb-6 text-center">Enter your master PIN to access the workstation.</p>
+          <p className="text-sm text-gray-400 mb-6 text-center">Master email and password required.</p>
           <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
-            <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="••••" className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center tracking-[1em] text-white focus:outline-none focus:border-rose-500 transition" autoFocus />
-            <button type="submit" className="w-full py-3 bg-gradient-to-r from-rose-500 to-orange-500 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] jelly hover:scale-105 transition">Unlock Database</button>
+            <input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="Admin Email" required className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-rose-500 transition" />
+            <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••••" required className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-rose-500 transition" />
+            <button type="submit" disabled={loginLoading} className="w-full py-3 bg-gradient-to-r from-rose-500 to-orange-500 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] jelly hover:scale-105 transition disabled:opacity-50">
+              {loginLoading ? "Authenticating..." : "Unlock Database"}
+            </button>
           </form>
         </div>
       </div>
@@ -649,8 +671,9 @@ export default function MasterAdmin() {
           <button onClick={() => setActiveTab("settings")} className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all duration-300 jelly ${activeTab === "settings" ? "bg-white/10 text-white border border-white/10 shadow-inner" : "text-gray-400 hover:bg-white/5 hover:text-gray-200"}`}><Settings className={`w-4 h-4 ${activeTab === "settings" ? "text-amber-400" : ""}`} /> System Settings</button>
         </nav>
 
-        <div className="mt-auto pt-8">
+        <div className="mt-auto pt-8 flex flex-col gap-2">
           <button onClick={() => router.push('/')} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-black/40 border border-white/5 text-gray-400 hover:text-white hover:bg-white/5 transition text-xs font-bold uppercase tracking-wider"><ArrowLeft className="w-3.5 h-3.5" /> Return to Student Hub</button>
+          <button onClick={() => supabase.auth.signOut()} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition text-xs font-bold uppercase tracking-wider">Sign Out</button>
         </div>
       </div>
 
