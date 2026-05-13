@@ -39,6 +39,7 @@ export default function StudyRoom() {
   const [mobileTab, setMobileTab] = useState<'none' | 'notes' | 'sheets' | 'playlist'>('none');
   
   const playerRef = useRef<any>(null);
+  const notesRef = useRef<string>("");
 
   useEffect(() => {
     async function fetchVideo() {
