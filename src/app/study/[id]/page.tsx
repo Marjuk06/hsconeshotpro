@@ -47,7 +47,8 @@ export default function StudyRoom() {
       if (!error && data) {
         // Merge Global Video Data with Local Device Storage!
         const stored = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-        const userV = stored[id as string] || {};
+        const videoIdStr = String(data.id); // ALWAYS use the DB numeric ID to prevent Next.js URL mismatches
+        const userV = stored[videoIdStr] || {};
         
         setVideo({ 
           ...data, 
@@ -78,14 +79,14 @@ export default function StudyRoom() {
   // Background Auto-Save Timer (Progress & Notes) to LOCAL STORAGE
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (playerRef.current && video) {
+      if (playerRef.current && video && video.id) {
         try {
           const currentTime = await playerRef.current.getCurrentTime();
           const duration = await playerRef.current.getDuration();
           
-          // ALWAYS read the freshest data from storage so we don't overwrite manual clicks!
+          const videoIdStr = String(video.id); // Bulletproof Key
           const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-          const currentV = currentData[id as string] || {};
+          const currentV = currentData[videoIdStr] || {};
           
           let status = currentV.status || video.status || "New";
           let finalProgress = currentV.progress || video.progress || 0;
@@ -97,7 +98,7 @@ export default function StudyRoom() {
             status = finalProgress === 100 ? "Watched" : "Watching";
           }
 
-          currentData[id as string] = {
+          currentData[videoIdStr] = {
             ...currentV,
             last_position: Math.floor(currentTime),
             progress: status === "Watched" ? 100 : finalProgress,
@@ -107,21 +108,23 @@ export default function StudyRoom() {
           localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
         } catch (e) {}
       }
-    }, 10000); // Increased to 10s for mobile optimization
+    }, 10000); 
 
     return () => clearInterval(interval);
-  }, [video, id]); // <--- REMOVED 'notes' FROM HERE TO FIX MOBILE KEYBOARD LAG
+  }, [video]); // Strictly depend on video state
 
   // TOGGLE WATCHED STATUS MANUALLY
   async function markWatched() {
+    if (!video || !video.id) return;
+    
+    const videoIdStr = String(video.id); // Bulletproof Key
     const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-    const currentV = currentData[id as string] || {};
+    const currentV = currentData[videoIdStr] || {};
     
     const isCurrentlyWatched = video.status === "Watched";
     const newStatus = isCurrentlyWatched ? "Watching" : "Watched";
     let newProgress = 100;
 
-    // If un-toggling back to "Watching", fetch current video time instead of 0
     if (isCurrentlyWatched) {
       if (playerRef.current) {
         try {
@@ -134,11 +137,10 @@ export default function StudyRoom() {
       }
     }
 
-    currentData[id as string] = { ...currentV, status: newStatus, progress: newProgress };
+    currentData[videoIdStr] = { ...currentV, status: newStatus, progress: newProgress };
     localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
     setVideo({ ...video, status: newStatus, progress: newProgress });
     
-    // Trigger Blob Cheer ONLY when marking as finished!
     if (!isCurrentlyWatched) {
       window.dispatchEvent(new CustomEvent("classWatched", { detail: { chapter: video.chapter || "this chapter" } }));
     }
@@ -184,7 +186,7 @@ export default function StudyRoom() {
           </div>
           
           <button onClick={markWatched} className={`text-xs px-4 py-2 rounded-xl transition flex items-center gap-2 font-medium jelly ${video.status === 'Watched' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-white/10 hover:bg-emerald-500/20 border border-white/20 hover:border-emerald-500/50 text-gray-300'}`}>
-            <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">Mark Watched</span>
+            <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">{video.status === 'Watched' ? 'Watched' : 'Mark Watched'}</span>
           </button>
         </div>
       </div>
