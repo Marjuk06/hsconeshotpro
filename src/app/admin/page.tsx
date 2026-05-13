@@ -358,20 +358,33 @@ export default function MasterAdmin() {
     const formData = new FormData(e.currentTarget);
     const updates = { subject: formData.get("subject"), paper: formData.get("paper"), chapter: formData.get("chapter") };
     const toastId = toast.loading(`Moving ${selectedIds.length} classes...`);
-    const { error } = await supabase.from("videos").update(updates).in("id", selectedIds);
-    if (!error) { toast.success("Classes moved successfully!", { id: toastId }); setSelectedIds([]); setIsMoveModalOpen(false); fetchDatabase(); } 
-    else toast.error("Failed to move classes.", { id: toastId });
+    const { error, data } = await supabase.from("videos").update(updates).in("id", selectedIds).select();
+    
+    if (!error && data && data.length > 0) { 
+      toast.success("Classes moved successfully!", { id: toastId }); 
+      setSelectedIds([]); 
+      setIsMoveModalOpen(false); 
+      fetchDatabase(); 
+    } else {
+      toast.error("Move blocked by Database RLS! ❌", { id: toastId }); 
+    }
   };
 
   // --- ACTIONS: DELETE ---
   const confirmDelete = async () => {
     if (deleteAlertIds.length === 0) return;
     const toastId = toast.loading(`Deleting...`);
-    setVideos(videos.filter(v => !deleteAlertIds.includes(v.id))); 
-    setSelectedIds([]); 
-    const { error } = await supabase.from("videos").delete().in("id", deleteAlertIds);
-    if (!error) toast.success("Successfully deleted.", { id: toastId });
-    else { toast.error("Failed to delete.", { id: toastId }); fetchDatabase(); }
+    
+    const { error, data } = await supabase.from("videos").delete().in("id", deleteAlertIds).select();
+    
+    if (!error && data && data.length > 0) { 
+      toast.success("Successfully deleted.", { id: toastId });
+      setVideos(videos.filter(v => !deleteAlertIds.includes(v.id))); 
+      setSelectedIds([]); 
+    } else { 
+      toast.error("Delete blocked by Database RLS! ❌", { id: toastId }); 
+      fetchDatabase(); 
+    }
     setDeleteAlertIds([]);
   };
 
@@ -390,18 +403,19 @@ export default function MasterAdmin() {
       sheets: validEditSheets
     };
     
-    // 🔥 THE TRICK: Wait for DB to finish AND force a 2.5s minimum delay for the liquid animation
+    // 🔥 THE TRICK: .select() forces Supabase to return the edited row. If RLS blocks it, data will be empty!
     const [dbResponse] = await Promise.all([
-      supabase.from("videos").update(updates).eq("id", editingVideo.id),
+      supabase.from("videos").update(updates).eq("id", editingVideo.id).select(),
       new Promise(resolve => setTimeout(resolve, 2500))
     ]);
 
-    if (!dbResponse.error) { 
+    // Check if error exists, OR if the bouncer silently blocked it (data array is empty)
+    if (!dbResponse.error && dbResponse.data && dbResponse.data.length > 0) { 
       toast.success("Class updated successfully! 🎉"); 
       setEditingVideo(null); 
       fetchDatabase(); 
     } else {
-      toast.error("Failed to update."); 
+      toast.error("Update blocked by Database RLS Policies! ❌"); 
     }
     setIsSavingEdit(false);
   };
