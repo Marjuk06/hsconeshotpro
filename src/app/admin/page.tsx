@@ -1297,7 +1297,10 @@ export default function MasterAdmin() {
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => setEditSheets([...editSheets, { title: "Lecture Slide", url: "" }])} className="mt-3 text-[10px] flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition font-bold uppercase tracking-wider"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
+              <button type="button" onClick={() => {
+                const nextTitle = SHEET_SEQUENCE[editSheets.length] || "Extra Material";
+                setEditSheets([...editSheets, { title: nextTitle, url: "" }]);
+              }} className="mt-3 text-[10px] flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition font-bold uppercase tracking-wider"><PlusCircle className="w-3.5 h-3.5" /> Add Another Sheet</button>
             </div>
 
           </div>
