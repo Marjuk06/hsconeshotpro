@@ -79,45 +79,49 @@ export default function StudyRoom() {
   useEffect(() => {
     const interval = setInterval(async () => {
       if (playerRef.current && video) {
-        const currentTime = await playerRef.current.getCurrentTime();
-        const duration = await playerRef.current.getDuration();
-        
-        let finalProgress = video.progress || 0;
-        let status = video.status || "New";
+        try {
+          const currentTime = await playerRef.current.getCurrentTime();
+          const duration = await playerRef.current.getDuration();
+          
+          // ALWAYS read the freshest data from storage so we don't overwrite manual clicks!
+          const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+          const currentV = currentData[id as string] || {};
+          
+          let status = currentV.status || video.status || "New";
+          let finalProgress = currentV.progress || video.progress || 0;
 
-        // DO NOT DOWNGRADE if manually marked as Watched!
+          // DO NOT DOWNGRADE if manually marked as Watched!
           if (duration > 0 && status !== "Watched") {
             const progressPct = Math.floor((currentTime / duration) * 100);
-            // Math.max prevents progress from sliding backwards if they scrub the video backward
             finalProgress = Math.max(finalProgress, progressPct > 95 ? 100 : progressPct);
             status = finalProgress === 100 ? "Watched" : "Watching";
           }
 
-          // Save strictly to the user's current device
-          const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
           currentData[id as string] = {
-            ...(currentData[id as string] || {}),
+            ...currentV,
             last_position: Math.floor(currentTime),
             progress: status === "Watched" ? 100 : finalProgress,
             status: status,
-            notes: notesRef.current // Read from Ref instead of State!
+            notes: notesRef.current
           };
           localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
+        } catch (e) {}
       }
-    }, 5000); 
+    }, 10000); // Increased to 10s for mobile optimization
 
     return () => clearInterval(interval);
-  }, [video, id, notes]);
+  }, [video, id]); // <--- REMOVED 'notes' FROM HERE TO FIX MOBILE KEYBOARD LAG
 
+  // TOGGLE WATCHED STATUS MANUALLY
   async function markWatched() {
     const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-    const isCurrentlyWatched = video.status === "Watched";
+    const currentV = currentData[id as string] || {};
     
-    // Toggle Logic
+    const isCurrentlyWatched = video.status === "Watched";
     const newStatus = isCurrentlyWatched ? "Watching" : "Watched";
     let newProgress = 100;
 
-    // If reverting back to 'Watching', try to grab actual progress, otherwise default to 0
+    // If un-toggling back to "Watching", fetch current video time instead of 0
     if (isCurrentlyWatched) {
       if (playerRef.current) {
         try {
@@ -130,11 +134,11 @@ export default function StudyRoom() {
       }
     }
 
-    currentData[id as string] = { ...(currentData[id as string] || {}), status: newStatus, progress: newProgress };
+    currentData[id as string] = { ...currentV, status: newStatus, progress: newProgress };
     localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
     setVideo({ ...video, status: newStatus, progress: newProgress });
     
-    // ONLY trigger the Study Buddy cheer if they are marking it as Done (not reverting it)
+    // Trigger Blob Cheer ONLY when marking as finished!
     if (!isCurrentlyWatched) {
       window.dispatchEvent(new CustomEvent("classWatched", { detail: { chapter: video.chapter || "this chapter" } }));
     }
