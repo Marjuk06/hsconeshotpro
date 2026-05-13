@@ -45,10 +45,10 @@ export default function StudyRoom() {
     async function fetchVideo() {
       const { data, error } = await supabase.from("videos").select("*").eq("id", id).single();
       if (!error && data) {
-        // Merge Global Video Data with Local Device Storage!
+        // ALWAYS use the DB numeric ID to prevent Next.js URL array/object mismatches!
+        const dbKey = String(data.id); 
         const stored = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-        const videoIdStr = String(data.id); // ALWAYS use the DB numeric ID to prevent Next.js URL mismatches
-        const userV = stored[videoIdStr] || {};
+        const userV = stored[dbKey] || {};
         
         setVideo({ 
           ...data, 
@@ -78,27 +78,28 @@ export default function StudyRoom() {
 
   // Background Auto-Save Timer (Progress & Notes) to LOCAL STORAGE
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (playerRef.current && video && video.id) {
+    const interval = setInterval(() => {
+      // Defensive check: Ensure player API is fully loaded before trying to read it
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function' && video && video.id) {
         try {
-          const currentTime = await playerRef.current.getCurrentTime();
-          const duration = await playerRef.current.getDuration();
+          // YouTube methods are synchronous! Removing 'await' stops the silent crashes.
+          const currentTime = playerRef.current.getCurrentTime() || 0;
+          const duration = playerRef.current.getDuration() || 0;
           
-          const videoIdStr = String(video.id); // Bulletproof Key
+          const dbKey = String(video.id); // Bulletproof Save Key
           const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-          const currentV = currentData[videoIdStr] || {};
+          const currentV = currentData[dbKey] || {};
           
           let status = currentV.status || video.status || "New";
           let finalProgress = currentV.progress || video.progress || 0;
 
-          // DO NOT DOWNGRADE if manually marked as Watched!
           if (duration > 0 && status !== "Watched") {
             const progressPct = Math.floor((currentTime / duration) * 100);
             finalProgress = Math.max(finalProgress, progressPct > 95 ? 100 : progressPct);
             status = finalProgress === 100 ? "Watched" : "Watching";
           }
 
-          currentData[videoIdStr] = {
+          currentData[dbKey] = {
             ...currentV,
             last_position: Math.floor(currentTime),
             progress: status === "Watched" ? 100 : finalProgress,
@@ -108,28 +109,28 @@ export default function StudyRoom() {
           localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
         } catch (e) {}
       }
-    }, 10000); 
+    }, 5000); 
 
     return () => clearInterval(interval);
-  }, [video]); // Strictly depend on video state
+  }, [video]); // Safely depends only on video state
 
   // TOGGLE WATCHED STATUS MANUALLY
-  async function markWatched() {
+  function markWatched() {
     if (!video || !video.id) return;
     
-    const videoIdStr = String(video.id); // Bulletproof Key
+    const dbKey = String(video.id); // Bulletproof Save Key
     const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-    const currentV = currentData[videoIdStr] || {};
+    const currentV = currentData[dbKey] || {};
     
     const isCurrentlyWatched = video.status === "Watched";
     const newStatus = isCurrentlyWatched ? "Watching" : "Watched";
     let newProgress = 100;
 
     if (isCurrentlyWatched) {
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
         try {
-          const currentTime = await playerRef.current.getCurrentTime();
-          const duration = await playerRef.current.getDuration();
+          const currentTime = playerRef.current.getCurrentTime() || 0;
+          const duration = playerRef.current.getDuration() || 0;
           newProgress = duration > 0 ? Math.floor((currentTime / duration) * 100) : 0;
         } catch(e) { newProgress = 0; }
       } else {
@@ -137,7 +138,7 @@ export default function StudyRoom() {
       }
     }
 
-    currentData[videoIdStr] = { ...currentV, status: newStatus, progress: newProgress };
+    currentData[dbKey] = { ...currentV, status: newStatus, progress: newProgress };
     localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
     setVideo({ ...video, status: newStatus, progress: newProgress });
     
