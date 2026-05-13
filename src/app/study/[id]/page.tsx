@@ -84,22 +84,24 @@ export default function StudyRoom() {
         let finalProgress = video.progress || 0;
         let status = video.status || "New";
 
-        if (duration > 0) {
-          const progressPct = Math.floor((currentTime / duration) * 100);
-          finalProgress = progressPct > 95 ? 100 : progressPct;
-          status = finalProgress === 100 ? "Watched" : "Watching";
-        }
+        // DO NOT DOWNGRADE if manually marked as Watched!
+          if (duration > 0 && status !== "Watched") {
+            const progressPct = Math.floor((currentTime / duration) * 100);
+            // Math.max prevents progress from sliding backwards if they scrub the video backward
+            finalProgress = Math.max(finalProgress, progressPct > 95 ? 100 : progressPct);
+            status = finalProgress === 100 ? "Watched" : "Watching";
+          }
 
-        // Save strictly to the user's current device (No DB mutation)
-        const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-        currentData[id as string] = {
-          ...(currentData[id as string] || {}),
-          last_position: Math.floor(currentTime),
-          progress: finalProgress,
-          status: status,
-          notes: notes
-        };
-        localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
+          // Save strictly to the user's current device
+          const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
+          currentData[id as string] = {
+            ...(currentData[id as string] || {}),
+            last_position: Math.floor(currentTime),
+            progress: status === "Watched" ? 100 : finalProgress,
+            status: status,
+            notes: notesRef.current // Read from Ref instead of State!
+          };
+          localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
       }
     }, 5000); 
 
@@ -108,12 +110,33 @@ export default function StudyRoom() {
 
   async function markWatched() {
     const currentData = JSON.parse(localStorage.getItem("hsc_user_data") || "{}");
-    currentData[id as string] = { ...(currentData[id as string] || {}), status: "Watched", progress: 100 };
-    localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
-    setVideo({ ...video, status: "Watched", progress: 100 });
+    const isCurrentlyWatched = video.status === "Watched";
     
-    // TRIGGER THE STUDY BUDDY ACHIEVEMENT UNLOCKED EVENT! 🎉
-    window.dispatchEvent(new CustomEvent("classWatched", { detail: { chapter: video.chapter || "this chapter" } }));
+    // Toggle Logic
+    const newStatus = isCurrentlyWatched ? "Watching" : "Watched";
+    let newProgress = 100;
+
+    // If reverting back to 'Watching', try to grab actual progress, otherwise default to 0
+    if (isCurrentlyWatched) {
+      if (playerRef.current) {
+        try {
+          const currentTime = await playerRef.current.getCurrentTime();
+          const duration = await playerRef.current.getDuration();
+          newProgress = duration > 0 ? Math.floor((currentTime / duration) * 100) : 0;
+        } catch(e) { newProgress = 0; }
+      } else {
+        newProgress = 0;
+      }
+    }
+
+    currentData[id as string] = { ...(currentData[id as string] || {}), status: newStatus, progress: newProgress };
+    localStorage.setItem("hsc_user_data", JSON.stringify(currentData));
+    setVideo({ ...video, status: newStatus, progress: newProgress });
+    
+    // ONLY trigger the Study Buddy cheer if they are marking it as Done (not reverting it)
+    if (!isCurrentlyWatched) {
+      window.dispatchEvent(new CustomEvent("classWatched", { detail: { chapter: video.chapter || "this chapter" } }));
+    }
   }
 
   const togglePanel = (panel: 'notes' | 'sheets') => {
