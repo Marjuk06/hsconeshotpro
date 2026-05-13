@@ -389,10 +389,20 @@ export default function MasterAdmin() {
       paper: formData.get("paper"), chapter: formData.get("chapter"), teacher: formData.get("teacher"), tags: formData.get("tags"),
       sheets: validEditSheets
     };
-    const toastId = toast.loading("Updating class...");
-    const { error } = await supabase.from("videos").update(updates).eq("id", editingVideo.id);
-    if (!error) { toast.success("Class updated!", { id: toastId }); setEditingVideo(null); fetchDatabase(); } 
-    else toast.error("Failed to update.", { id: toastId });
+    
+    // 🔥 THE TRICK: Wait for DB to finish AND force a 2.5s minimum delay for the liquid animation
+    const [dbResponse] = await Promise.all([
+      supabase.from("videos").update(updates).eq("id", editingVideo.id),
+      new Promise(resolve => setTimeout(resolve, 2500))
+    ]);
+
+    if (!dbResponse.error) { 
+      toast.success("Class updated successfully! 🎉"); 
+      setEditingVideo(null); 
+      fetchDatabase(); 
+    } else {
+      toast.error("Failed to update."); 
+    }
     setIsSavingEdit(false);
   };
 
@@ -444,7 +454,6 @@ export default function MasterAdmin() {
 
   async function handleAddClass(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setLoadingForm(true);
-    const toastId = toast.loading(isBulkMode ? "Deploying bulk classes..." : "Saving class...");
     const formData = new FormData(e.currentTarget);
     const validSheets = sheets.filter(s => s.url.trim() !== "");
     
@@ -489,7 +498,13 @@ export default function MasterAdmin() {
       });
     }
 
-    const { error } = await supabase.from("videos").insert(newClasses);
+    // 🔥 THE TRICK: Wait for DB AND force a 2.5s minimum delay for the animation
+    const [dbResponse] = await Promise.all([
+      supabase.from("videos").insert(newClasses),
+      new Promise(resolve => setTimeout(resolve, 2500))
+    ]);
+    const error = dbResponse.error;
+    
     setLoadingForm(false);
     
     if (!error) {
@@ -502,11 +517,9 @@ export default function MasterAdmin() {
         const pap = cls.paper;
         const chap = cls.chapter;
         
-        // Grab YouTube thumbnail automatically for new folders
         const ytId = getYouTubeID(cls.url);
         const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : "";
 
-        // Auto-create missing nodes
         if (!newH[sub]) { newH[sub] = { img: thumb, seq: Object.keys(newH).length, papers: {} }; hierarchyUpdated = true; }
         if (!newH[sub].papers) newH[sub].papers = {};
         if (!newH[sub].papers[pap]) { newH[sub].papers[pap] = { img: thumb, seq: Object.keys(newH[sub].papers).length, chapters: {} }; hierarchyUpdated = true; }
@@ -516,19 +529,17 @@ export default function MasterAdmin() {
 
       if (hierarchyUpdated) {
         saveHierarchy(newH);
-        toast.success("Subject Controls Auto-Synced! 📂", { id: toastId });
+        toast.success("Subject Controls Auto-Synced! 📂");
       } else {
-        toast.success(`${newClasses.length} Class(es) added!`, { id: toastId });
+        toast.success(`${newClasses.length} Class(es) deployed! 🚀`);
       }
 
-      // 🔥 INSTANT SHOUT: Tells the Navbar and VideoGrid to update immediately!
       window.dispatchEvent(new Event("classAdded"));
 
       (e.target as HTMLFormElement).reset(); setBulkRows([{ url: "", title: "", chapter: "" }]); setSheets([{ title: "Lecture Slide", url: "" }]);
       fetchDatabase(); setActiveTab("library"); 
     } else {
-      // THIS WILL PRINT THE EXACT REASON SUPABASE IS REJECTING IT
-      toast.error(`DB Error: ${error.message}`, { id: toastId, duration: 6000 });
+      toast.error(`DB Error: ${error.message}`, { duration: 6000 });
       console.error("Full DB Error:", error);
     }
   }
@@ -980,10 +991,21 @@ export default function MasterAdmin() {
               )}
 
               <button disabled={loadingForm} type="submit" className={`relative w-full py-4 rounded-xl font-bold transition-all duration-300 overflow-hidden border text-base ${loadingForm ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] text-black' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white jelly'}`}>
-                <div className={`absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-[2500ms] ease-out ${loadingForm ? 'w-full' : 'w-0'}`}></div>
+                {/* LIQUID WAVE ANIMATION */}
+                <div className={`absolute top-0 left-0 h-full bg-emerald-400 transition-all duration-[2500ms] ease-out ${loadingForm ? 'w-full' : 'w-0'}`}>
+                  <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.3) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.3) 75%, transparent 75%, transparent)', backgroundSize: '20px 20px', animation: 'wave-move 1s linear infinite' }}></div>
+                </div>
                 <span className="relative z-10">{loadingForm ? "Processing Transaction..." : isBulkMode ? `Deploy ${bulkRows.length} Classes to Database` : "Deploy Class to Database"}</span>
               </button>
             </form>
+
+            {/* INJECT KEYFRAMES FOR THE WAVES */}
+            <style>{`
+              @keyframes wave-move {
+                0% { background-position: 0 0; }
+                100% { background-position: 20px 20px; }
+              }
+            `}</style>
           </div>
         )}
 
@@ -1316,7 +1338,10 @@ export default function MasterAdmin() {
           </div>
           
           <button disabled={isSavingEdit} type="submit" className={`relative w-full py-3.5 rounded-xl font-bold transition-all duration-300 overflow-hidden border ${isSavingEdit ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] text-black' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white jelly'}`}>
-            <div className={`absolute top-0 left-0 h-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-[2500ms] ease-out ${isSavingEdit ? 'w-full' : 'w-0'}`}></div>
+            {/* LIQUID WAVE ANIMATION */}
+            <div className={`absolute top-0 left-0 h-full bg-amber-400 transition-all duration-[2500ms] ease-out ${isSavingEdit ? 'w-full' : 'w-0'}`}>
+              <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.3) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.3) 75%, transparent 75%, transparent)', backgroundSize: '20px 20px', animation: 'wave-move 1s linear infinite' }}></div>
+            </div>
             <span className="relative z-10">{isSavingEdit ? "Applying Changes..." : "Save Changes"}</span>
           </button>
         </form>
