@@ -271,7 +271,7 @@ export default function StudyRoom() {
                       )}
                     </div>
                     <div className="flex-grow w-full min-h-[40vh] rounded-xl overflow-hidden border border-white/10 bg-white relative">
-                      {activeSheet && <iframe className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>}
+                      {activeSheet && <iframe key={activeSheet} className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>}
                     </div>
                   </>
                 ) : (
@@ -318,7 +318,7 @@ export default function StudyRoom() {
             
             <div className="flex-grow w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-white shadow-inner relative">
               {activeSheet ? (
-                <iframe className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>
+                <iframe key={activeSheet} className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-900">Select a sheet to view</div>
               )}
