@@ -22,6 +22,16 @@ const getDrivePreviewUrl = (url: string) => {
   return url;
 };
 
+// FORCE DIRECT DOWNLOAD FROM GOOGLE DRIVE INSTEAD OF OPENING NEW TAB
+const getDriveDownloadUrl = (url: string) => {
+  if (!url) return "";
+  if (url.includes('drive.google.com/file/d/')) {
+    const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (match && match[1]) return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+  }
+  return url;
+};
+
 export default function StudyRoom() {
   const { id } = useParams();
   const router = useRouter();
@@ -252,7 +262,7 @@ export default function StudyRoom() {
                 ></textarea>
               </div>
 
-              {/* Sheets Tab */}
+             {/* Sheets Tab */}
               <div className={`flex-col p-4 h-full gap-3 ${mobileTab === 'sheets' ? 'flex' : 'hidden'}`}>
                 {video.sheets && video.sheets.length > 0 ? (
                   <>
@@ -265,13 +275,20 @@ export default function StudyRoom() {
                         ))}
                       </div>
                       {activeSheet && (
-                        <a href={activeSheet} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 hover:text-white transition jelly" title="Download Sheet">
-                          <Download className="w-4 h-4" />
+                        <a href={getDriveDownloadUrl(activeSheet)} className="px-3 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 rounded-xl text-xs font-bold transition jelly flex items-center gap-1.5 shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-indigo-500/30" title="Direct Download">
+                          <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Download</span>
                         </a>
                       )}
                     </div>
                     <div className="flex-grow w-full min-h-[40vh] rounded-xl overflow-hidden border border-white/10 bg-white relative">
-                      {activeSheet && <iframe key={activeSheet} className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>}
+                      {/* MAP ALL IFRAMES IN BACKGROUND TO PRESERVE SCROLL PROGRESS */}
+                      {video.sheets.map((sheet: any, idx: number) => (
+                        <iframe 
+                          key={idx} 
+                          className={`w-full h-full absolute inset-0 transition-opacity duration-300 ${activeSheet === sheet.url ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`} 
+                          src={getDrivePreviewUrl(sheet.url)}
+                        />
+                      ))}
                     </div>
                   </>
                 ) : (
@@ -310,17 +327,23 @@ export default function StudyRoom() {
                 ))}
               </div>
               {activeSheet && (
-                <a href={activeSheet} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 hover:text-white transition jelly" title="Download Sheet">
-                  <Download className="w-4 h-4" />
+                <a href={getDriveDownloadUrl(activeSheet)} className="px-3 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 rounded-xl text-xs font-bold transition jelly flex items-center gap-1.5 shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-indigo-500/30" title="Direct Download">
+                  <Download className="w-3.5 h-3.5" /> Download
                 </a>
               )}
             </div>
             
             <div className="flex-grow w-full h-full rounded-2xl overflow-hidden border border-white/10 bg-white shadow-inner relative">
-              {activeSheet ? (
-                <iframe key={activeSheet} className="w-full h-full absolute inset-0 z-10" src={getDrivePreviewUrl(activeSheet)}></iframe>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-900">Select a sheet to view</div>
+              {/* MAP ALL IFRAMES IN BACKGROUND TO PRESERVE SCROLL PROGRESS */}
+              {video?.sheets?.map((sheet: any, idx: number) => (
+                <iframe 
+                  key={idx} 
+                  className={`w-full h-full absolute inset-0 transition-opacity duration-300 ${activeSheet === sheet.url ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'}`} 
+                  src={getDrivePreviewUrl(sheet.url)}
+                />
+              ))}
+              {!activeSheet && (
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-900 z-0">Select a sheet to view</div>
               )}
             </div>
           </div>
